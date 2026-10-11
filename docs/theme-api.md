@@ -374,3 +374,7 @@ const { page } = Astro.props;
 ~~~
 
 无需主题读取宿主配置或自行拼接 base，也不要再额外输出固定的 `link rel="icon"`。内置 Minimal 和七个主题已接入；Verdant 原有 SVG/ICO 组合仍用于默认回退。使用此能力的主题声明 `engine: '^1.3.0'` 和 Core peerDependency `^0.4.1`。
+
+### 模板完整性
+
+`mintfolio.configTemplate` 导出的对象应列出 schema 的全部字段，嵌套对象也需完整；空数组应在注释中展示条目结构。完整模板保留作者注释。若模板遗漏字段，Core 会保留其中的有效取值，并根据 schema 重新生成完整对象，补上默认值、说明、枚举选项和数值范围；此时使用 schema 注释替代模板手写注释。未提供模板的主题直接按 schema 生成，空数组条目示例保持注释，不激活虚构内容。

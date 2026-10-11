@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { checkedPath } from './files.mjs';
+import { checkedPath, exists } from './files.mjs';
+import { settingsTemplate } from '../theme-config.mjs';
 import { listPosts } from './posts.mjs';
 import { PAGES_DIR, PROJECT_DIR, PUBLIC_DIR, siteRootOf } from '../../src/shared/layout.mjs';
 
@@ -24,12 +25,15 @@ async function writeNew(root, relative, source) {
  */
 export async function initialize(root) {
   await writeNew(root, '.gitignore', 'node_modules/\ndist/\n.astro/\n.cache/\n.env\n.env.*\n');
-  await writeNew(root, 'theme.config.mjs', `/**
+  if (!await exists(path.join(root, 'theme.config.mjs'))) await writeNew(root, 'theme.config.mjs', `/**
  * 主题选择与主题设置。
  * theme 留空时使用内置的 Minimal；安装主题后运行 mintfolio theme use <主题>，
  * 会在这里写入 theme 和带注释的 settings。settings 只对当前主题生效。
  */
-export default {};
+export default {
+  theme: 'minimal',
+  settings: ${(await settingsTemplate(root, 'minimal')).replace(/\n/g, '\n  ')},
+};
 `);
   await writeNew(root, 'site.config.ts', `import { defineSiteConfig } from '@mintfolio/core/config';
 export default defineSiteConfig({

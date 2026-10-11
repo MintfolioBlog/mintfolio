@@ -422,3 +422,37 @@ test('favicon CLI edits validate the URL before touching the site file and suppo
   await setConfig(root, 'site', 'site.favicon', '');
   assert.equal(await getConfig(root, 'site', 'site.favicon'), '');
 });
+
+
+test('new site initialization lists Minimal settings and preserves existing configuration', async t => {
+  const root = await fixture(t);
+  const file = path.join(root,'theme.config.mjs');
+  await rm(file);
+  await initialize(root);
+  const generated = sourceValue(configSource(await readFile(file,'utf8')));
+  const minimal = await activeTheme(root);
+  assert.equal(generated.theme,'minimal');
+  assert.deepEqual(generated.settings,minimal.settings);
+  assert.deepEqual(Object.keys(generated.settings).sort(),Object.keys(minimal.definition.settings).sort());
+  const custom = '// user comment\nexport default {theme: "minimal", settings: {maxWidth: 900}, overrides:{pages:{}}};\n';
+  await writeFile(file,custom);
+  await initialize(root);
+  assert.equal(await readFile(file,'utf8'),custom);
+});
+
+test('reselecting the current theme fills empty settings but preserves nonempty settings and overrides', async t => {
+  const root = await fixture(t);
+  await localTheme(root);
+  const file = path.join(root,'theme.config.mjs');
+  await writeFile(file,'// keep me\nexport default {theme: "./custom", settings:{}, overrides:{pages:{}}};\n');
+  await useTheme(root,'./custom');
+  const source = await readFile(file,'utf8');
+  const generated = sourceValue(configSource(source));
+  assert.deepEqual(generated.settings,(await activeTheme(root)).settings);
+  assert.deepEqual(generated.overrides,{pages:{}});
+  assert.match(source,/keep me/);
+  const custom = source.replace('"count": 6','"count": 9');
+  await writeFile(file,custom);
+  await useTheme(root,'./custom');
+  assert.equal(await readFile(file,'utf8'),custom);
+});
