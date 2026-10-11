@@ -1,3 +1,4 @@
+import { normalizeFavicon } from '../../src/shared/favicon.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'astro/zod';
@@ -27,6 +28,7 @@ const siteSchema = z.object({
     title: string.refine(value => value.trim().length > 0, '标题不能为空'),
     url: string.url().refine(value => ['http:', 'https:'].includes(new URL(value).protocol), '域名须使用 HTTP 或 HTTPS'),
     description: string.optional(), language: string.optional(),
+    favicon: string.refine(value => { try { normalizeFavicon(value); return true; } catch { return false; } }, '图标必须是站内根路径或 HTTP(S) URL').optional(),
   }).strict(),
   profile: z.object({ name: string.optional(), avatar: image.optional(), bio: string.optional(), location: string.optional(), signature: string.optional() }).strict(),
   social: z.array(z.object({ platform: string, url: string, icon: string }).strict()),
@@ -158,7 +160,7 @@ export async function configSchema(root, scope, selector) {
   }
   if (scope !== 'site') throw new Error('配置范围为 site 或 theme。');
   return {
-    site: ['title', 'url', 'description', 'language'],
+    site: ['title', 'url', 'description', 'language', 'favicon'],
     profile: ['name', 'avatar', 'bio', 'location', 'signature'],
     social: 'JSON 数组：{ platform, url, icon }',
     skills: 'JSON 数组：{ category, items: [{ name, level: 0–100 }] }',

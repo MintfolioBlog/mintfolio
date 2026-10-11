@@ -1,25 +1,27 @@
-# Mintfolio 使用手册
+# Mintfolio 手册
 
-Mintfolio 是基于 Astro 的个人主页与 Markdown 博客工具。Core 管理内容、路由和公开数据，主题决定页面的样子。你可以先写好文章，再选择适合自己的主题。
+Mintfolio 用一个装着 Markdown 文章的文件夹生成个人主页和博客。文章就是普通的 `.md` 文件，样子交给主题，最后输出静态网页。
 
-项目仍在持续开发中。安装与升级前请留意版本说明。
+## 我想建一个博客
 
-## 建立自己的站点
+按顺序看下来就够了：
 
-1. [快速开始](Getting-Started)：安装、创建站点和启动预览。
-2. [站点配置](Configuration)：设置站点信息、个人资料和图片。
-3. [写作](Writing)：文章字段、草稿、分类与密码文章。
-4. [主题管理](Themes)：安装 Verdant、切换主题和保存各自设置。
-5. [构建与部署](Deployment)：生成静态文件并部署到自己的平台。
+1. [快速开始](Getting-Started)：安装，建站，跑起来
+2. [写文章](Writing)：frontmatter 怎么写，草稿、定时、密码文章
+3. [站点配置](Configuration)：标题、个人资料、导航、订阅……
+4. [主题](Themes)：换主题，调外观
+5. [部署](Deployment)：放到网上
 
-## 开发与参考
+用到时再查：[博客功能一览](Blogging-Features) · [命令行](CLI) · [常见问题](Troubleshooting)
 
-- [命令行参考](CLI)
-- [主题开发入门](Theme-Development)
-- [Theme API 参考](Theme-API)
-- [标准组件](Components)
-- [常见问题](Troubleshooting)
+## 我想做一个主题
 
-源码：[Mintfolio](https://github.com/MintfolioBlog/mintfolio) · [Verdant](https://github.com/MintfolioBlog/mintfolio-theme-verdant) · [Theme API](https://github.com/MintfolioBlog/mintfolio-theme-api) · [Theme Starter](https://github.com/MintfolioBlog/mintfolio-theme-starter)
+1. [从 Starter 创建主题](Theme-Development)：从模板开始，一步步做出一个能发布的主题
+2. [Theme API](Theme-API)：主题能拿到哪些数据、能用哪些工具
+3. [标准组件](Components)：可以直接拿来用的搜索、分页、密码表单等组件
 
-发现问题时，请在对应仓库提交 Issue，附版本、复现步骤和脱敏后的日志。
+想改 Mintfolio 本身，看仓库里的 [CONTRIBUTING.md](https://github.com/MintfolioBlog/mintfolio/blob/main/CONTRIBUTING.md)。
+
+---
+
+项目还在 0.x 阶段，升级前看一眼 [更新记录](https://github.com/MintfolioBlog/mintfolio/blob/main/CHANGELOG.md)。遇到问题欢迎 [提 issue](https://github.com/MintfolioBlog/mintfolio/issues)。

@@ -1,28 +1,15 @@
-# Mintfolio Theme API
+# Theme API
 
-Mintfolio 的布局主题是一个独立模块：Core 负责内容公开策略、URL、路由、SEO 和受保护文章的密文，主题只负责用公开数据渲染页面。主题可以拥有任意 HTML、CSS 和浏览器交互，不需要也不能继承默认主题的布局。
+一个 Mintfolio 主题就是一个 npm 包：一个 `theme.mjs` 声明文件，加几个 Astro 页面。
 
-`@mintfolio/core` 0.4.x 提供完整引擎和主题公共入口，内部依赖 `@mintfolio/theme-api` 1.x 契约层。各组件独立发布。组件关系见 [Core 与主题包](https://github.com/MintfolioBlog/mintfolio/blob/main/docs/core-packages.md)。
+分工很简单：**Core 决定有哪些页面、每个页面放什么数据；主题决定这些数据长什么样。** 路由、URL、草稿过滤、SEO、加密都是 Core 的事，主题拿到的是已经处理好的公开数据，HTML、CSS、交互完全自由。
 
-## 公开入口与边界
+本文对应 Core 0.4 / Theme API 1.2。想先动手做一个，看 [从 Starter 创建主题](https://github.com/MintfolioBlog/mintfolio/wiki/Theme-Development)。
 
-| 入口 | 用途 |
-| --- | --- |
-| `@mintfolio/core/theme` | `defineTheme`、清单、嵌套设置、公开 DTO 和上下文类型 |
-| `@mintfolio/core/astro` | `PageProps`、页面、正文与 SEO 类型 |
-| `@mintfolio/core/search` | 纯搜索、组合筛选及 URL 参数函数 |
-| `@mintfolio/core/client` | 共享列表、生命周期、解锁、目录、图片预览和复制行为 |
-| `@mintfolio/core/components/*` | 可选 `PostArchive.astro`、`ProtectedArticle.astro`、`SeoHead.astro`、`Image.astro` |
-
-底层 `@mintfolio/theme-api` 的根入口、`/astro`、`/search`、`/client` 仍可使用，Core 对这些契约提供稳定门面。其 `/crypto` 是内容适配器用的低层加密工具，不负责 HTML 清理，普通主题无需调用。
-
-主题只能导入面向主题的公开入口及自身模块、资源和 Astro 渲染原语。`@mintfolio/core`、`/config`、`/content` 是宿主入口，主题不能调用。Theme Runtime 在导入 manifest 和编译 renderer 前检查依赖图，拒绝主题导入 `site.config.ts`、Core 包的 `src/server`/`src/engine`/`src/routes`、旧 `src/core`、旧 `src/lib`/`src/utils`、`src/pages`、内容目录、`astro:content` 或 `virtual:mintfolio/*`；显式页面 override 遵守同一规则。检查会覆盖直接、别名和转递导入，也会检查 manifest 的直接和转递依赖。这是构建时的开发契约，不是执行 npm 包的安全沙箱。
-
-## 声明主题
-
-每个主题根目录必须有 `theme.mjs`，并通过 `defineTheme()` 返回一个静态清单。`home` 和 `post` 是必需语义页面；其余 renderer 都是可选的。路径以清单目录为基准，必须以 `./` 开始并指向主题内的 `.astro` 文件。
+## 一个最小的主题
 
 ```js
+// theme.mjs
 import { defineTheme } from '@mintfolio/core/theme';
 
 export default defineTheme({
@@ -30,44 +17,100 @@ export default defineTheme({
     id: 'paper',
     name: 'Paper',
     version: '1.0.0',
-    author: 'Example author',
-    description: 'A quiet reading theme.',
+    author: 'Your name',
+    description: '安静的阅读主题',
     engine: '^1.2.0',
-  },
-  capabilities: {
-    search: true,
-    tags: true,
-    categories: true,
-    encryptedPosts: true,
   },
   pages: {
     home: './pages/home.astro',
     post: './pages/post.astro',
-    archive: './pages/archive.astro',
-    page: './pages/page.astro',
-    notFound: './pages/not-found.astro',
-  },
-  settings: {
-    maxWidth: { type: 'number', label: '正文宽度', default: 760, min: 480, max: 1200 },
-    accentColor: { type: 'color', label: '强调色', default: '#2255aa' },
   },
 });
 ```
 
-`id` 使用小写连字符命名；`version` 是精确 semver；`engine` 是 Theme API/Runtime 的 semver 范围，不是站点或 Astro 的版本。`author` 与 `description` 是必填字段。`capabilities` 中未声明的能力默认为 `false`。包含加密文章的站点不能选择未声明 `encryptedPosts: true` 的主题。
+```astro
+---
+// pages/home.astro
+import type { ThemePageProps } from '@mintfolio/core/astro';
+import SeoHead from '@mintfolio/core/components/SeoHead.astro';
+import definition from '../theme.mjs';
 
-可声明的页面为 `home`、`post`、`page`、`archive`、`notFound`。`home`/`post` 必需；缺少其余页面时，Core 按页使用内置 Minimal。Core 持有 `/`、`/about`、`/blog`、`/blog/[...slug]`、`/404`、RSS 和 Sitemap 路由。
+type Props = ThemePageProps<typeof definition, 'home'>;
+const { theme, page } = Astro.props;
+---
+<html lang={theme.site.language}>
+  <head><meta charset="utf-8" /><SeoHead seo={page.seo} /></head>
+  <body>
+    <h1>{theme.site.title}</h1>
+    <ul>{page.posts.map((post) => <li><a href={post.url}>{post.title}</a></li>)}</ul>
+  </body>
+</html>
+```
 
-标签、分类、系列及静态分页使用独立 URL，共用 `archive` renderer。旧 `/blog?q=…&tag=…&category=…` 链接由全站搜索组件继续支持。它们不是独立页面槽位；清单中的 `pages.tag/category/search` 会报错，防止接受一个不会被路由调用的 renderer。主题应使用提供的 URL，避免自行注册冲突端点。
+只写了首页和文章页也能完整运行：归档、独立页面、404 这些没写的页面，Core 会用内置的 Minimal 补上。
 
-设置支持 `string`、`boolean`、`number`、`select`、`color`、`object`、`array`。每项均有 `label` 和 `default`；number 可定义边界，select 定义字符串选项，color 使用十六进制。object 定义 `properties`，array 定义 `items`。对象递归补齐默认值；数组显式替换并保留顺序。未知键或错误值会按路径报错，包括数组下标。`InferSettings` 推导完整嵌套类型。
+## 从哪里导入
+
+| 入口 | 内容 |
+| --- | --- |
+| `@mintfolio/core/theme` | `defineTheme`、`InferSettings`、所有数据类型 |
+| `@mintfolio/core/astro` | 页面 props 类型：`ThemePageProps`、`PageProps`、`PageDataFor` 等 |
+| `@mintfolio/core/client` | 浏览器端工具：生命周期、解锁、目录、灯箱、列表、复制 |
+| `@mintfolio/core/search` | 搜索纯函数：`searchPosts`、`rankSearchResults`、`searchWithHighlights` 等 |
+| `@mintfolio/core/components/*.astro` | 可选的标准组件，见 [标准组件](https://github.com/MintfolioBlog/mintfolio/wiki/Components) |
+
+只能从这些入口导入。`@mintfolio/core` 根入口、`/config`、`/content` 是给站点用的，主题碰不得；`astro:content`、站点的 `site.config.ts`、Core 的 `src/` 私有目录也一样。构建时 Core 会检查主题的整个依赖图（包括间接导入），越界就直接报错。
+
+> 这是开发约束，不是安全沙箱：它防止主题意外依赖 Core 内部实现，但不能阻止恶意 npm 包。
+
+## theme.mjs
+
+### manifest
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 小写加连字符，比如 `paper`、`my-theme` |
+| `name` | 显示名称 |
+| `version` | 精确的 semver，比如 `1.0.0` |
+| `author`、`description` | 必填 |
+| `engine` | 兼容的 Theme API 版本范围，写 `^1.2.0`。注意这不是 Core 或 Astro 的版本 |
+
+### pages
+
+| 页面 | 必需 | 用在哪 |
+| --- | --- | --- |
+| `home` | 是 | `/` |
+| `post` | 是 | `/blog/<文章>` |
+| `archive` | 否 | `/blog`、`/blog/page/2`、`/tags/…`、`/categories/…`、`/series/…` |
+| `page` | 否 | `/about` 和 `_mintfolio/pages/` 里的独立页面 |
+| `notFound` | 否 | 404 |
+
+路径相对 `theme.mjs` 所在目录，以 `./` 开头，指向包内的 `.astro` 文件。标签、分类、系列、搜索都共用 `archive` 页面，没有单独的槽位。
+
+### capabilities
+
+声明主题支持什么，没写的都当作 `false`：`search`、`tags`、`categories`、`toc`、`darkMode`、`encryptedPosts`、`comments`、`i18n`。
+
+目前 Core 会看其中几项：
+
+- `encryptedPosts`：站点里有密码文章而主题没声明它，构建直接失败。声明了就要保证文章页真能处理受保护正文（最省事的办法是用 `ProtectedArticle` 组件）。
+- `search`、`tags`、`categories`：没声明时构建会给一条警告，提醒用户这个主题可能不显示对应功能。
+
+其余几项目前只是描述信息。
+
+### settings
+
+主题设置的 schema。用户在 `theme.config.mjs` 里填，Core 负责校验和补默认值，主题从 `theme.settings` 读到的永远是完整、合法的值。
 
 ```js
 settings: {
+  accentColor: { type: 'color', label: '强调色', default: '#2255aa' },
+  maxWidth: { type: 'number', label: '正文宽度', default: 760, min: 480, max: 1200 },
+  layout: { type: 'select', label: '布局', default: 'wide', options: ['wide', 'narrow'] },
   sidebar: {
     type: 'object', label: '侧栏', default: {},
     properties: {
-      enabled: { type: 'boolean', label: '显示', default: true },
+      enabled: { type: 'boolean', label: '显示侧栏', default: true },
       links: {
         type: 'array', label: '链接', default: [],
         items: {
@@ -83,257 +126,251 @@ settings: {
 }
 ```
 
-需要 React/Tailwind 的主题在清单中声明 `build: { react: true, tailwind: true }`，并在主题包内安装对应 `@astrojs/react`/React 与 `@tailwindcss/vite`/Tailwind 依赖。Core 从选中主题的包位置加载工具链。主题不能注册任意 Core hooks；主题继承不受支持。
+- 类型：`string`、`boolean`、`number`、`select`、`color`、`object`、`array`。每项都要有 `label` 和 `default`，可以加 `description`。
+- 用户没填的字段用默认值。对象逐层合并，数组整个替换。
+- 未知字段、类型不对的值会报错，错误信息带完整路径（比如 `sidebar.links.0.url`）。
+- `InferSettings<typeof definition.settings>` 能推导出完整的设置类型，`ThemePageProps` 已经帮你做了这一步。
 
-## 页面 props 与公开数据
+### build
 
-每个 renderer 都接收 `{ theme, page }`。让 Astro 校验调用契约时，在页面声明 `Props`，而非把 `Astro.props` 断言成任意类型：
+主题要用 React 或 Tailwind 时声明 `build: { react: true, tailwind: true }`，并在主题自己的 `dependencies` 里装 `@astrojs/react` / `react` 或 `@tailwindcss/vite` / `tailwindcss`。主题不能注册任意 Astro 或 Vite 插件，也不支持继承另一个主题。
 
-```astro
----
-import type { InferSettings } from '@mintfolio/core/theme';
-import type { HomePageData, PageProps } from '@mintfolio/core/astro';
+## 页面拿到什么
+
+每个页面的 props 都是 `{ theme, page }`。用 `ThemePageProps` 声明类型最方便：
+
+```ts
+import type { ThemePageProps } from '@mintfolio/core/astro';
 import definition from '../theme.mjs';
-
-interface Props extends PageProps<InferSettings<typeof definition.settings>, HomePageData> {}
-const { theme, page } = Astro.props;
----
-<h1>{theme.site.title}</h1>
-<ul>
-  {page.posts.map((post) => <li><a href={post.url}>{post.title}</a></li>)}
-</ul>
+type Props = ThemePageProps<typeof definition, 'post'>;
 ```
 
-`theme.site` 是扁平的公开站点投影：`title`、`description`、`url`、`language`、`profile`、`social`、`skills`、`projects`、`contact` 和可选 `icp`。它不包含旧布局配置或导入的宿主模块。`theme.navigation` 是 `{id, label, url}` 列表，主题可以重排或省略这些链接。
+### page：这一页的数据
 
-`PostSummary` 还提供可选 `updatedAt`、`wordCount`、`readingMinutes`、`pinned`、`authors`、`series`、`seo` 和本地 `preview`。受保护文章不提供正文统计。
+所有页面都有 `kind`、`title`、`description`、`url`、`seo`。各自另外有：
 
-`PostSummary` 提供 `id`、`url`、`title`、`description`、ISO 字符串 `publishedAt`、`tags`、`category`、可选 `cover` 与 `protected`。每个 taxonomy term 都有 Core 生成的 `{id, label, url}`。受保护文章的描述是 Core 的公开占位文本；原始内容集合条目、frontmatter 口令和正文永远不会进入这个 DTO。
+| kind | 额外字段 |
+| --- | --- |
+| `home` | `posts`：文章列表（置顶在前，然后按时间倒序） |
+| `post` | `post`、`body`、`previous`、`next`、`related`、`seriesPosts` |
+| `archive` | `posts`（**只是当前这一页**）、`filters`、`pagination`、`taxonomy`（在标签/分类/系列页时告诉你是哪个） |
+| `page` | `id`、`profile`、`body`（Markdown 独立页才有；`/about` 没有 body，用 `profile` 渲染）、`updatedAt` |
+| `notFound` | 无 |
 
-所有地址由 Core 提供。文章必须链接 `post.url`，标签/分类必须链接 `term.url`，其他页面使用 `theme.urls.home()`、`archive(filters?)`、`page(id)`、`post(id)`、`tag(label)`、`category(label)`、`rss()` 和 `sitemap()`。不要拼接 `/blog/${id}`、`/about` 或查询字符串。
+`related`、`seriesPosts`、`previous`/`next` 都是 Core 排好序的，直接渲染就行。
 
-构建/服务端可调用：
+### theme：全站数据和服务
+
+| 字段 | 内容 |
+| --- | --- |
+| `theme.site` | 站点标题、描述、URL、语言，以及 `profile`、`social`、`skills`、`projects`、`contact`、`icp`、`authors`、`analytics` 等公开资料 |
+| `theme.navigation` | 导航链接 `{ id, label, url }[]`，主题可以重排或省略 |
+| `theme.settings` | 校验过、补齐默认值的主题设置 |
+| `theme.content` | 查文章和页面，见下 |
+| `theme.taxonomy` | `tags()`、`categories()`、`series()` 返回 `{ id, label, url, count }[]`；`archives()` 按月分组（只有数据，没有月份归档页） |
+| `theme.search` | `index()` 返回公开搜索条目 |
+| `theme.urls` | 所有链接都从这里拿，见下 |
+
+`theme` 里有构建期函数，不要把它整个序列化到浏览器端。
+
+### 查询内容
 
 ```ts
-const result = await theme.content.posts({ q: 'astro', tag: '前端', offset: 0, limit: 10 });
-// result.items 是公开 PostSummary[]；result.total 是分页前的匹配数。
-const one = await theme.content.post('my-post'); // 草稿或不存在时为 null
-const tags = await theme.taxonomy.tags();
-const categories = await theme.taxonomy.categories();
-const months = await theme.taxonomy.archives();
-const index = await theme.search.index();
+const { items, total } = await theme.content.posts({ tag: 'Astro', offset: 0, limit: 5 });
+const post = await theme.content.post('notes/hello');     // 不存在或未发布时为 null
+const pages = await theme.content.pages();                // 只包括 Markdown 独立页
+const series = await theme.content.series('博客搭建笔记');  // 按系列顺序
+const related = await theme.content.related('notes/hello', 3);
 ```
 
-`theme.content.posts({q})` 使用公开全文索引，忽略大小写，多词使用 AND；tag/category 按显示标签精确匹配。`theme` 含有构建期函数，不能整体序列化给客户端。
+`posts()` 的筛选条件有 `q`、`tag`、`category`、`series`，同时给多个时取交集，`q` 搜全文、不分大小写。`total` 是分页前的总数。
 
-`page` 是带 `kind` 的联合：`HomePageData` 有 `posts`；`PostPageData` 有 `post`、`body`、`previous`、`next`；`ArchivePageData` 有完整 `posts` 和初始 `filters`；`StaticPageData` 有 `id` 与 `profile`；列表/404 页面也都有 `title`、`description`、`url` 与 Core 生成的 `seo`。可将 `seo` 传给 `SeoHead.astro`，或等价地在主题自己的 `<head>` 中渲染 canonical、robots、描述和 Open Graph 数据。
+这里的 ID 是文件路径得出的内容 ID（如 `notes/hello`），不是 frontmatter 里的 `slug`。
 
-## 1.1 新增页面与内容服务
+### 文章摘要 PostSummary
 
-- `ArchivePageData.posts` 是当前静态页的文章；`pagination` 提供当前页、总页数、上下页与页码链接。不要再次做客户端切片。
-- `StaticPageData.body` 为独立 Markdown 页的公开 HTML/标题；内置 about 仍由 `profile` 提供。
-- `PostPageData.related` 与 `seriesPosts` 由 Core 排序；主题直接呈现。
-- `theme.content.pages()`、`related(id,limit?)`、`taxonomy.series()` 提供页面、关联文章和系列信息。
-- 新 URL 服务为 `archivePage(number,filters?)`、`series(label)`、`jsonFeed()`、`atom()`。
-- `rankSearchResults` 排相关性，`searchWithHighlights` 返回纯文本片段和 UTF-16 高亮坐标；不输出 HTML。
+列表里的每篇文章都是 `PostSummary`：`id`、`url`、`title`、`description`、`publishedAt`（ISO 字符串）、`tags`、`category`、`cover`、`protected`，以及可选的 `updatedAt`、`wordCount`、`readingMinutes`、`pinned`、`series`、`authors`、`seo`、`preview`（本地草稿预览时为 `true`）。
 
-主题应优先复用 SearchPanel/Pagination/PostMeta/ArticleLinks；[博客功能](Blogging-Features) 包含站点侧配置。
+密码文章的 `description` 是 Core 给的占位文字，也没有字数和阅读时长。
 
-## 静态归档筛选
+### 链接
 
-静态构建的 Astro frontmatter 不会因查询参数重新执行。标签、分类和系列有各自的静态归档路由；q/tag/category/series 查询参数由浏览器全站搜索处理。`page.posts` 只包含当前静态页，完整搜索应加载 `theme.urls.searchIndex()` 返回的 SearchPayload，不能用当前页的文章代替全站索引。下面的 posts 仅用于演示对已提供的摘要进行筛选：
+**永远不要自己拼 URL。** 文章用 `post.url`，标签分类用 `term.url`，其他从 `theme.urls` 拿：
 
-```ts
-import { createSearchEntry, readFiltersFromUrl, searchPosts, writeFiltersToUrl } from '@mintfolio/core/client';
+| 方法 | 地址 |
+| --- | --- |
+| `home()`、`archive(filters?)`、`archivePage(n, filters?)` | 首页、归档、归档第 n 页 |
+| `post(id)`、`page(id)` | 文章、独立页 |
+| `tag(label)`、`category(label)`、`series(label)` | 标签、分类、系列页 |
+| `rss()`、`atom()`、`jsonFeed()`、`sitemap()`、`robots()` | 订阅等 |
+| `searchIndex()` | 全文搜索索引的地址 |
+| `asset(path)` | 给 `/images/a.png` 这种站内路径加上部署前缀 |
 
-const filters = readFiltersFromUrl(window.location.href);
-const matching = searchPosts(posts.map(createSearchEntry), filters);
-const next = writeFiltersToUrl(filters, new URL(window.location.href));
-history.replaceState(history.state, '', next.toString());
-```
+这些地址已经处理好编码和子目录前缀（站点部署在 `/blog/` 下时自动带上）。自己拼的 `/blog/${id}` 在子目录部署时就会坏掉。
 
-`createSearchEntry(post, bodyText?)` 保留原文大小写和可选公开正文；受保护文章始终丢弃正文参数。`searchPosts()` 与 `filterPosts()` 不排序、不分页、不修改输入，不会读取文件；前者接收可含正文的 SearchEntry，后者仅过滤 PostSummary 元数据。`readFiltersFromUrl()` 不读取 `window`，所以也能测试或在服务端使用；`writeFiltersToUrl()` 返回一个新 URL 并保留无关参数和 hash。
+## 文章正文
 
-## 共享控制器与可选组件
-
-主题可以直接组合 Core 的标准组件：
+`page.body` 有两种：
 
 ```astro
 ---
-import PostArchive from '@mintfolio/core/components/PostArchive.astro';
-const { theme, page } = Astro.props;
-const [tags, categories] = await Promise.all([
-  theme.taxonomy.tags(), theme.taxonomy.categories(),
-]);
+import ProtectedArticle from '@mintfolio/core/components/ProtectedArticle.astro';
+const { page } = Astro.props;
 ---
-<PostArchive posts={page.posts} tags={tags} categories={categories}
-  filters={page.filters} language={theme.site.language} pagination={page.pagination}
-  archiveUrl={theme.urls.archive()} searchEndpoint={theme.urls.searchIndex()} />
+{page.body.kind === 'public'
+  ? <article set:html={page.body.html} />
+  : <ProtectedArticle body={page.body} />}
 ```
 
-该组件呈现当前静态页、分类/标签导航和传入的分页链接，搜索由 SearchPanel 懒加载完整公开索引。`pageSize` 仅保留兼容声明，实际静态分页由站点 blog.pageSize 控制。搜索结果与下方当前页列表分别展示。
+- `{ kind: 'public', html, headings }`：普通文章，`html` 已经是安全的，可以直接 `set:html`；`headings` 用来做目录。
+- `{ kind: 'protected', postId, payload }`：密码文章，只有密文，没有标题目录。
 
-若需要完全自定义 HTML，使用同一控制器：
+用 `ProtectedArticle` 组件就够了。想自己画解锁界面时：
 
 ```ts
-import { createPostListController, createSearchEntry, readFiltersFromUrl } from '@mintfolio/core/client';
-const list = createPostListController({
-  items: posts, index: createSearchEntry, pageSize: 10,
-  initialFilters: readFiltersFromUrl(location.href),
-});
-const stop = list.subscribe((state) => {
-  // 首次订阅立即收到状态；用原始 DTO 渲染 state.visible。
-  renderCards(state.visible);
-  renderCount(state.total, state.hasMore);
-});
-list.setFilters({ q: 'Astro', tag: '前端', category: '' });
-list.loadMore();
-// 卸载时 stop(); list.dispose();
-```
+import { unlockArticle, ArticleUnlockError } from '@mintfolio/core/client';
 
-`value()` 返回 `filters/matches/visible/total/limit/hasMore/facets`。筛选改变会重置分页；`setLimit()` 支持主题恢复已加载数量。facets 按另一项 taxonomy 计算，忽略 q；`reconcileFacets: true` 可清除不可用选项，默认不清除。控制器不操作 DOM、history、storage 或排序，调用方决定这些策略。
-
-| API | 输入与返回 / 生命周期 |
-| --- | --- |
-| `onPage(target, setup)` | 选择器或根节点解析函数；setup 收到根节点和 `PageScope`；返回取消函数，支持普通文档、Astro 切换及 BFCache |
-| `createPageScope()` | 提供 `signal/add/timeout/frame/dispose`，统一释放事件、计时器和帧回调 |
-| `createProtectedArticleController(options)` | ciphertext、postId、渲染/清理回调；返回 `unlock/lock/dispose`，处理异步竞争及页面离开清理 |
-| `createTocController(options)` | headings、可选 links、offset 和进度回调；返回 `refresh/scrollTo/dispose` |
-| `createLightboxController(options)` | 主题自有 dialog、image、viewport 和按钮；提供缩放、平移、键盘及释放 |
-| `copyText(text)` | 异步返回是否复制成功；不提供按钮样式 |
-| `extractCodeText/resolveCodeLanguage` | 从代码节点提取原文/语言；工具栏由主题绘制 |
-
-DOM 控制器支持传入 `signal`；可使用 `scope.add(controller.dispose)`。Core 不读取 Verdant 的类名、配色键或页面结构。Verdant 通过适配脚本调用这些控制器，Minimal 和 Starter 则复用标准组件。
-
-## 正文与受保护文章
-
-`PostPageData.body` 是判别联合：公开正文为 `{ kind: 'public', html, headings }`，可以用 `set:html` 输出；受保护正文为 `{ kind: 'protected', postId, payload }`，没有标题目录或明文。payload 的认证明文协议固定为：
-
-```ts
-{ version: 1, html: string, headings: Array<{ depth: number; slug: string; text: string }> }
-```
-
-主题不得自行解密或假设 payload 内部字段。在浏览器脚本中调用：
-
-```ts
-import { unlockArticle } from '@mintfolio/core/client';
-
-const { fragment, headings } = await unlockArticle(body.payload, password, body.postId);
-container.replaceChildren(fragment);
-```
-
-该 helper 验证密文、认证并解密、检查 version 1 envelope，再由 DOMPurify 清理 HTML，返回短生命周期的 `DocumentFragment` 和纯文本 headings。需要 HTTPS 或 localhost 的安全 Web Crypto 上下文。需要自定义表单时，优先使用 `createProtectedArticleController` 统一处理生命周期和竞争请求。主题负责 `onUnlock` 挂载、`onClear` 清除自己创建的所有节点和引用：成功后清空输入，relock、`pagehide`/导航时清除正文和 headings 引用；异步解锁在页面释放或有更新请求后完成时必须丢弃结果。不要把密码、明文或 headings 写入 localStorage、sessionStorage、history 或其他持久化位置。可按 `ArticleUnlockError.code` 显示本地化错误，而不是解析底层异常。
-
-## 选择、覆盖和作者工作流
-
-站点 `_mintfolio/theme.config.mjs` 可以是 `export default {}`：没有主题选择时使用 Core 自带 Minimal。也可显式选择 `minimal`、相对主题目录或已安装 npm 包。Verdant 必须单独安装，通过 `@mintfolio/theme-verdant` 选择；`verdant` 是其简写，不会自动安装。
-
-npm 包通过 `exports` 导出 `./theme`。显式包名无法解析时构建失败。`MINTFOLIO_THEME` 切换到不同主题时使用新主题的默认 settings，并忽略原主题的 settings/overrides；与原主题名相同则保留原配置。
-
-### 站点中的主题设置（Core >= 0.4）
-
-站点只在 `_mintfolio/theme.config.mjs` 的 `settings` 中保存当前主题的设置，Core 用清单的设置 schema 校验，未填写的字段使用清单默认值；对象递归合并，数组整组替换。开发服务监听该文件的变化。文件是原生 ESM，图片使用 public 路径或 URL。Core 不再生成或读取 `theme-<manifest.id>.config.mjs`。
-
-主题作者可在 npm package.json 中声明设置模板：
-
-```json
-{
-  "mintfolio": { "configTemplate": "./config/theme-verdant.config.mjs" },
-  "files": ["theme.mjs", "config", "pages", "styles"]
+try {
+  const { fragment, headings } = await unlockArticle(body.payload, password, body.postId);
+  container.replaceChildren(fragment);
+} catch (error) {
+  if (error instanceof ArticleUnlockError) showError(error.code);
 }
 ```
 
-路径相对于主题包根目录，必须指向包内 `.mjs` 文件并纳入打包白名单。模板用 `export default` 导出一个合法设置对象字面量，可以保留详细注释和空数组的条目示例；不要读取宿主文件。Core 只复制这个对象（包括其中的注释），文件开头的说明不会进入站点。没有自定义模板的主题由 Core 从清单自动生成带字段说明的完整默认设置。
+`unlockArticle` 负责验证、解密和清理 HTML，返回可以直接插入的 `DocumentFragment`。更推荐用 `createProtectedArticleController`，它还帮你处理重复提交、页面离开时清空等细节。
 
-`mintfolio theme use <主题>` 切换主题时，把新主题的模板写入站点 `_mintfolio/theme.config.mjs` 的 `settings`，原设置保存在备份中；`mintfolio theme init` 只在 `settings` 为空时写入模板。`theme install`（旧名 `theme:add`）只安装主题包，不生成任何站点文件。主题包只拥有模板，宿主文件写入和读取由 Core 负责。
+自己实现时请遵守：
 
-`overrides.pages` 是相对 Astro 项目根目录 `_mintfolio/`的显式 `.astro` 覆盖，例如 `{ pages: { archive: './my-theme/archive.astro' } }`。覆盖同样必须在项目内，不能指向 Core、路由或主题 Runtime。没有隐式同名文件覆盖，也没有 `extends`/主题继承。
+- 不要自己解密，不要假设 `payload` 的内部结构。
+- 密码、解密后的正文和目录**不要**写进 localStorage、sessionStorage、URL 或 history。
+- 重新锁定、离开页面（`pagehide`）时清掉正文和所有引用。
+- 浏览器解密需要 HTTPS 或 localhost。
 
-独立作者可从 [Theme Starter](https://github.com/MintfolioBlog/mintfolio-theme-starter) 开始。主题包应包含 `type: "module"`、`exports: { "./theme": "./theme.mjs" }`、完整的 `files` 白名单，以及 `@mintfolio/core: ^0.4.0` 与 `astro: ^7.3.2` 的 peerDependencies。主题使用底层 SDK 时额外声明该依赖。开发与包职责见 [组件说明](https://github.com/MintfolioBlog/mintfolio/blob/main/docs/core-packages.md)。
+## 浏览器端
 
+### 生命周期
 
-## 本地检查
+站点可能启用 Astro 的页面切换和浏览器的往返缓存（BFCache），事件绑定要能正确释放。用 `onPage`：
 
-各仓库独立执行检查，无需编译相邻仓库源码：
+```ts
+import { onPage, createTocController } from '@mintfolio/core/client';
 
-| 仓库 | 命令与范围 |
+onPage('[data-article]', (root, scope) => {
+  root.querySelector('button')?.addEventListener('click', onClick, { signal: scope.signal });
+  const toc = createTocController({ /* … */ });
+  scope.add(toc.dispose);
+});
+```
+
+`scope.signal` 在离开页面时自动 abort；`scope.add()` 注册清理函数；`scope.timeout()`、`scope.frame()` 是会自动取消的定时器。
+
+### 控制器
+
+这些控制器只管行为，不碰样式和 DOM 结构，界面由主题自己画：
+
+| 函数 | 用途 |
 | --- | --- |
-| MintfolioThemeAPI | `npm test` 编译公开契约并检查搜索、加密纯函数 |
-| MintfolioCore | `npm test` 编译公共 ESM/声明，运行核心单测和实际 Astro/Vite 导入边界检查 |
-| MintfolioThemeVerdant / MintfolioThemeStarter | `npm run check` 检查主题 Astro 和 TypeScript |
-| 消费站点根目录 | `mintfolio check --no-interactive` 检查；`mintfolio build --no-interactive` 使用已安装包构建 |
+| `createProtectedArticleController` | 密码文章解锁、重新锁定、离开时清理 |
+| `createTocController` | 目录高亮、滚动到标题、阅读进度 |
+| `createLightboxController` | 图片预览：缩放、拖动、键盘操作 |
+| `createPostListController` | 前端筛选、分页加载更多 |
+| `copyText`、`extractCodeText`、`resolveCodeLanguage` | 代码块复制按钮需要的工具 |
 
-在消费站点运行 `npx mintfolio theme:check` 可以校验所选 manifest、settings、renderer 路径和覆盖路径。它不替代 Astro renderer 的类型检查与静态构建。站点的 dev/build/check 不编译 SDK/Core 源码；更新依赖先在所属仓库打包，再刷新消费仓库的 vendor 与锁文件。
+每个控制器都返回 `dispose()`，也都接受 `signal`。
 
-## SDK 1.2 与 Core 0.4
+### 搜索
 
-使用本节新增服务的主题声明 `manifest.engine: '^1.2.0'`，并将 Core peerDependency 设为 `^0.4.0`。旧的 `^1.1.0` 清单仍可在新 Runtime 加载；需要新增服务时应提高最低契约版本。SDK 与 Core 使用独立版本号。1.2 与 Core 0.4 配套使用。
+归档页的 `page.posts` 只有当前一页，做全站搜索要加载 `theme.urls.searchIndex()` 返回的完整索引。最省事的是直接用 `PostArchive` 或 `SearchPanel` 组件；自己做的话，`@mintfolio/core/search` 里有：
 
-### 已有功能与公开接口
+- `searchPosts(entries, filters)`：筛选
+- `rankSearchResults(...)`：按相关度排序
+- `searchWithHighlights(...)`：返回纯文本片段和高亮位置（不输出 HTML，由你决定怎么标亮）
+- `readFiltersFromUrl` / `writeFiltersToUrl`：在 URL 参数和筛选条件之间转换
 
-| Core 功能 | 主题开发入口 |
-| --- | --- |
-| 置顶、发布时间、更新时间、阅读时长、作者、封面 | `PostSummary`；受保护正文不提供字数与阅读时长 |
-| 标签、分类、系列、按月归档 | `theme.taxonomy.tags/categories/series/archives()`；月份按站点时区分组，没有月归档路由 |
-| 筛选与切片 | `theme.content.posts({ q, tag, category, series, offset, limit })`；返回 `{ items, total }`，total 为切片前总数 |
-| 系列目录 | `theme.content.series(id)`；精确系列 ID，先按 order 升序、再按发布时间升序，未设置 order 的排后面 |
-| 独立 Markdown 页 | `theme.content.pages()` / `page(id)`；未知或不可见 ID 返回 null，生成的 about 不属于 Markdown 集合 |
-| 相关文章与文章导航 | `theme.content.related(id, limit)`、`page.related`、`page.previous/next`、`page.seriesPosts` |
-| 静态归档分页 | `page.pagination`；可用 `theme.urls.archivePage(number, filters)` 获取路由，页码从 1 开始 |
-| 全文搜索 | `theme.search.index()`、`searchWithHighlights`；`SearchPayload` 描述搜索端点的 `{ posts, index }` |
-| 部署到子目录 | `theme.urls.searchIndex()`、`robots()`、`asset('/logo.svg')`，其他 URL 方法同样包含部署前缀 |
-| SEO、社交卡片、订阅 | `page.seo` 与 SeoHead；`theme.urls.rss/jsonFeed/atom/sitemap()` |
-| 加密文章、目录、图片预览、代码复制 | 从 `@mintfolio/core/client` 导入现有控制器，组件从 `@mintfolio/core/components/*` 导入 |
-| GA4 | `theme.site.analytics` 只读展示配置，生产脚本由 Core 注入，开发模式关闭，主题不要重复初始化 |
+搜索索引里只有已发布的公开内容。密码文章只有标题等元数据，没有正文。
 
-`content.post/page` 使用内容 ID，不使用 frontmatter slug；链接始终使用 DTO 的 url。`urls.post/page` 只负责路由编码，不进行 ID 到 slug 的查询。`posts()` 保持 Core 的置顶、新文章优先顺序，系列目录另用 `series()`。搜索过滤忽略大小写、各条件取交集；`series` 为可选字段，未提供或空字符串不限制系列。
+## 设置模板
 
-`archivePage` 按 tag、category、series 的顺序选取第一个非空分类生成静态路径，其余条件与 q 保留在查询参数中。这些参数由浏览器搜索处理，不会使静态页面重新构建；链接有效页码须来自已有的 `page.pagination`。`asset` 为根相对静态路径补一次部署前缀，已带前缀、外部 URL 和相对路径保持不变，不检查文件存在性或做图片优化。
+用户切换到你的主题时，Core 会往他们的 `theme.config.mjs` 里写一份设置模板。默认根据 schema 自动生成；想给用户更友好的注释和示例，可以自己写一份：
 
-公开内容服务仍遵守发布策略：只有显式本地预览才可看到草稿及定时文章；搜索始终排除草稿、定时未发布和 noindex 内容，加密文章索引没有正文。不要序列化整个 theme 上下文，它包含构建期函数。
+```js
+// config/theme-paper.config.mjs
+export default {
+  // 链接和按钮的颜色
+  accentColor: '#2255aa',
+  // 侧栏链接，可以照着下面的格式加
+  sidebar: { links: [] },
+};
+```
 
-### 从 manifest 推导页面类型
+然后在 `package.json` 里声明：
 
-下面是 `pages/archive.astro` 的完整最小示例，假定清单位于包根目录 `theme.mjs`：
+```json
+{
+  "mintfolio": { "configTemplate": "./config/theme-paper.config.mjs" }
+}
+```
+
+Core 只会复制 `export default` 后面的对象（连同里面的注释），文件开头的说明不会带过去。模板里不要读取任何外部文件。
+
+## package.json 要点
+
+```json
+{
+  "name": "mintfolio-theme-paper",
+  "type": "module",
+  "exports": { "./theme": "./theme.mjs" },
+  "files": ["theme.mjs", "pages", "styles", "config"],
+  "peerDependencies": {
+    "@mintfolio/core": "^0.4.0",
+    "astro": "^7.3.2"
+  }
+}
+```
+
+- 必须通过 `exports` 导出 `./theme`。
+- `files` 要包含所有页面、样式、字体和设置模板。发布前用 `npm pack --dry-run` 看一眼。
+- 字体、图标等第三方素材记得带上许可证。
+
+## 站点怎么使用主题
+
+```js
+// _mintfolio/theme.config.mjs
+export default {
+  theme: 'mintfolio-theme-paper',   // npm 包名、相对目录，或 'minimal'
+  settings: { accentColor: '#aa3355' },
+  overrides: {
+    pages: { archive: './overrides/archive.astro' },   // 可选：只替换某个页面
+  },
+};
+```
+
+- `theme` 留空时用内置 Minimal。
+- `overrides.pages` 相对 `_mintfolio/` 解析，覆盖的页面同样受导入边界约束。没有隐式的同名文件覆盖。
+- 环境变量 `MINTFOLIO_THEME` 可以临时换一个主题启动；换成别的主题时，原来的 `settings` 和 `overrides` 会被忽略。
+
+## 检查
+
+| 在哪 | 命令 | 检查什么 |
+| --- | --- | --- |
+| 主题仓库 | `npm run check`（Starter 自带） | Astro 和 TypeScript 类型 |
+| 测试站点 | `mintfolio theme check` | manifest、设置、页面路径、覆盖路径 |
+| 测试站点 | `mintfolio build` | 真正构建一遍 |
+
+`theme check` 不能替代真正的构建。发布前，把主题 `npm pack` 出来装进一个测试站点，看看首页、普通文章、密码文章、缺省页面的回退、手机尺寸和页面切换是否正常。
+
+## 站点 favicon 契约
+
+Core 0.4.1 将站点配置 `site.favicon` 验证、规范化并补上部署路径后，提供为 `theme.site.favicon` 和所有页面的 `page.seo.favicon`。Theme API 1.3 的 `SeoHead` 新增可选 `faviconFallback` 属性，接受 URL 字符串或只读 `FaviconLink[]`（`{ href, type? }`）。配置了站点图标时只渲染该图标；未配置时才渲染主题提供的默认图标列表。
 
 ~~~astro
 ---
-import definition from '../theme.mjs';
-import type { ThemePageProps } from '@mintfolio/core/astro';
 import SeoHead from '@mintfolio/core/components/SeoHead.astro';
-import PostArchive from '@mintfolio/core/components/PostArchive.astro';
-
-type Props = ThemePageProps<typeof definition, 'archive'>;
-const { theme, page } = Astro.props;
-const [tags, categories] = await Promise.all([
-  theme.taxonomy.tags(), theme.taxonomy.categories(),
-]);
+import defaultIcon from '../assets/favicon.svg?url';
+const { page } = Astro.props;
 ---
-<!doctype html>
-<html lang={theme.site.language}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <SeoHead seo={page.seo} />
-  </head>
-  <body>
-    <main>
-      <h1>{page.title}</h1>
-      <PostArchive posts={page.posts} tags={tags} categories={categories}
-        filters={page.filters} pagination={page.pagination}
-        language={theme.site.language} archiveUrl={theme.urls.archive()}
-        searchEndpoint={theme.urls.searchIndex()} />
-    </main>
-  </body>
-</html>
+<SeoHead seo={page.seo} faviconFallback={defaultIcon} />
 ~~~
 
-`PageProps<Settings, PageData>` 原有写法继续支持；`PageDataFor<'post'>` 可以单独取文章页数据类型。`ThemeContent`、`ThemeTaxonomy`、`ThemeSearch` 可以作为自定义组件的服务参数类型。`ThemeConfiguration<Settings>` 的 settings 使用 `ThemeSettingsInput` 允许递归的对象部分覆盖，数组仍须提供完整条目。
-
-### Core 0.4 项目布局和生命周期
-
-站点根目录放文章；`_mintfolio/` 放 package.json、site.config.ts、theme.config.mjs、pages、public 和依赖。`overrides.pages` 从 Astro 项目根 `_mintfolio/` 解析，例如 `./overrides/archive.astro`。主题包内 renderer 路径仍从 theme.mjs 所在目录解析。
-
-设置统一放在 `_mintfolio/theme.config.mjs` 的 settings。主题可在 package.json 声明 `mintfolio.configTemplate`，Core 的 `mintfolio theme use` 会复制模板对象及注释并备份旧配置，`theme init` 仅在 settings 为空时填充。主题不应自行读写宿主配置；旧 `theme-<id>.config.mjs` 已不作为站点运行时设置文件。
-
-浏览器交互从 `@mintfolio/core/client` 导入 `onPage`，在 setup 中使用 `scope.signal` 绑定事件，并用 `scope.add(controller.dispose)` 注册控制器清理，以支持 Astro 页面切换和 BFCache。解锁后正文、目录和密码不可持久化，离开页面或重新锁定时必须清除。SDK 本身不依赖 Core；完整的 DOM 控制器属于 Core 的公共门面，不要从其 src 私有路径导入。
+无需主题读取宿主配置或自行拼接 base，也不要再额外输出固定的 `link rel="icon"`。内置 Minimal 和七个主题已接入；Verdant 原有 SVG/ICO 组合仍用于默认回退。使用此能力的主题声明 `engine: '^1.3.0'` 和 Core peerDependency `^0.4.1`。

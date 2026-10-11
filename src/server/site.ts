@@ -20,6 +20,7 @@ export function getPublicSite(): PublicSite {
     description: config.site.description,
     url: deploymentUrl(config.site.url, deploymentBase),
     language: config.site.language,
+    ...(config.site.favicon ? { favicon: resolveAsset(config.site.favicon) } : {}),
     profile: { ...config.profile, avatar: publicImage(config.profile.avatar) },
     social: config.social.map((link) => ({ ...link, url: resolveAsset(link.url) })),
     skills: config.skills.map((group) => ({ category: group.category, items: group.items.map((item) => ({ ...item })) })),

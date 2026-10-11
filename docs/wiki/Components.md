@@ -1,73 +1,118 @@
 # 标准组件
 
-标准组件是可选的。它们提供基本行为和局部样式，主题可直接复用，也可使用同一套公开控制器绘制自己的界面。
+Core 带了几个现成的 Astro 组件，主题可以直接用，省得每个主题都重写一遍搜索框和密码表单。用不用全凭主题自己：不喜欢它们的样子，可以只拿 [Theme API](Theme-API#浏览器端) 里的控制器自己画界面。
 
-所有组件从 `@mintfolio/core/components/<名称>.astro` 导入。
+导入方式都一样：
+
+```astro
+import SearchPanel from '@mintfolio/core/components/SearchPanel.astro';
+```
+
+组件只带最基础的样式，类名都以 `mintfolio-` 开头，主题可以用 CSS 覆盖。
+
+## 一览
+
+| 组件 | 放在哪 | 必填参数 |
+| --- | --- | --- |
+| `SeoHead` | 每个页面的 `<head>` | `seo` |
+| `ProtectedArticle` | 文章页，密码文章时 | `body` |
+| `PostArchive` | 归档页，一站式的列表 + 搜索 + 分页 | `posts`、`tags`、`categories` |
+| `SearchPanel` | 任何地方 | — |
+| `Pagination` | 归档页 | `pagination` |
+| `PostMeta` | 文章页或列表 | `post` |
+| `ArticleLinks` | 文章页末尾 | `page` |
+| `Image` | 任何地方 | `src`、`alt`、`width`、`height` |
 
 ## SeoHead
 
-放在文档 `<head>` 内，传入 `seo={page.seo}`。它渲染 Core 计算的标题、描述、canonical、robots 和 Open Graph 信息。
+```astro
+<head>
+  <SeoHead seo={page.seo} />
+</head>
+```
 
-不要重复渲染另一组相互冲突的 SEO 标签。如果主题自己输出标签，需要保留这些数据及 Core 的索引策略。
-
-## PostArchive
-
-提供当前页静态列表、标签/分类链接、全站全文搜索和静态分页。
-
-| 参数 | 类型 | 含义 |
-| --- | --- | --- |
-| `posts` | `PostSummary[]` | Core 传入的当前页公开列表 |
-| `tags` | `TaxonomyCount[]` | 可选标签及数量 |
-| `categories` | `TaxonomyCount[]` | 可选分类及数量 |
-| `filters` | `Partial<PostFilters>` | 可选初始筛选 |
-| `language` | `string` | 日期显示语言，默认 zh-CN |
-| `pagination` | `Pagination` | 可选静态分页信息 |
-| `pageSize` | 正整数 | 旧参数保留兼容；实际条数由 `site.blog.pageSize` 控制 |
-
-前三项必传。`theme.taxonomy.tags()` 和 `categories()` 获取对应数据。完整用例见 [Theme API](Theme-API)。
-
-浏览器中的筛选会同步 URL，并处理后退导航。SearchPanel 按需加载 Core 的公开全文索引，不包含密码文章正文。
-
-## SearchPanel / Pagination
-
-SearchPanel 可单独放入主题：`<SearchPanel />` 默认读取 `/search-index.json`，支持中文、组合查询、安全高亮、失败重试与旧查询 URL。可传 `endpoint` 和 `placeholder`；endpoint 必须同源。正常分类页上的新搜索默认搜索全站。
-
-Pagination 接收 `pagination={page.pagination}`，输出真实上下页及页码链接；无 JavaScript 也能浏览。
-
-## PostMeta / ArticleLinks
-
-PostMeta 接收 `post`，可选 `language`、`timezone`，呈现日期、更新时间、公开阅读统计、作者和预览标记。
-
-ArticleLinks 接收 `page={page}`（PostPageData），按 Core 提供的数据呈现系列目录、相关文章和相邻文章。
+输出标题、描述、canonical、robots、Open Graph、Twitter Card、结构化数据和订阅链接。每个页面都应该放，不要再自己输出一套冲突的 SEO 标签。
 
 ## ProtectedArticle
 
-唯一必需参数为 `body`，类型是 `ArticleBody` 中 `kind: 'protected'` 的分支。
+```astro
+{page.body.kind === 'protected' && <ProtectedArticle body={page.body} />}
+```
 
-提供密码表单、失败提示、解锁正文和重新锁定。页面离开时清除已解锁内容。组件在浏览器调用 Core 的解锁控制器，验证及清理解密结果；无需主题自行处理加密协议。
+密码输入框、错误提示、解锁后的正文、“重新锁定”按钮都有了，离开页面时会自动清掉解锁的内容。用了它，主题就可以放心声明 `encryptedPosts: true`。
 
-该组件不接受文章密码。密码由读者输入，构建期只接收密文。
+## PostArchive
 
-## Image
-
-包装 Astro 的图片组件，接受：
-
-| 参数 | 说明 |
-| --- | --- |
-| `src` | 字符串 URL 或公开图片元数据 `PublicImage` |
-| `alt` | 必填替代文字 |
-| `width` / `height` | 必填显示尺寸 |
-| `widths/quality/format/layout/fit/position/background/priority` | 转交 Astro 的图片选项 |
-
-普通 HTML 图片属性也会转发。保留本地图片元数据可供 Astro 优化；空 `src` 显示占位图。远程图片的优化与允许域名仍遵守站点的 Astro 配置。
+归档页最省事的写法，一个组件包含当前页文章列表、标签和分类入口、全站搜索、分页：
 
 ```astro
 ---
-import Image from '@mintfolio/core/components/Image.astro';
-const { theme } = Astro.props;
+const { theme, page } = Astro.props;
+const [tags, categories] = await Promise.all([theme.taxonomy.tags(), theme.taxonomy.categories()]);
 ---
-<Image src={theme.site.profile.avatar}
-  alt={theme.site.profile.name} width={96} height={96} />
+<PostArchive
+  posts={page.posts}
+  tags={tags}
+  categories={categories}
+  filters={page.filters}
+  pagination={page.pagination}
+  language={theme.site.language}
+  archiveUrl={theme.urls.archive()}
+  searchEndpoint={theme.urls.searchIndex()} />
 ```
 
-需要自定义列表、目录、复制按钮或灯箱时，使用 [Theme API 中的共享控制器](Theme-API)。
+| 参数 | 说明 |
+| --- | --- |
+| `posts` | 当前页的文章，传 `page.posts` |
+| `tags`、`categories` | 从 `theme.taxonomy` 取 |
+| `filters` | 当前筛选，用来高亮选中的标签/分类 |
+| `pagination` | 分页信息，传 `page.pagination` |
+| `language` | 日期格式用的语言，默认 `zh-CN` |
+| `archiveUrl` | “全部文章”的地址，默认 `/blog`。站点部署在子目录时一定要传 `theme.urls.archive()` |
+| `searchEndpoint` | 搜索索引地址，传 `theme.urls.searchIndex()` |
+
+## SearchPanel
+
+单独的全站搜索框，可以放在首页、侧栏或者任何地方：
+
+```astro
+<SearchPanel endpoint={theme.urls.searchIndex()} placeholder="搜点什么" />
+```
+
+第一次输入时才加载搜索索引。支持中文、多个关键词、结果高亮、加载失败重试。`endpoint` 不传时用默认地址（已考虑子目录部署），但必须是同一个域名下的地址。
+
+## Pagination
+
+```astro
+{page.pagination && <Pagination pagination={page.pagination} />}
+```
+
+上一页、下一页和页码，都是真实链接，不需要 JavaScript。只有一页时不输出任何内容。
+
+## PostMeta
+
+```astro
+<PostMeta post={page.post} language={theme.site.language} timezone={theme.site.blog?.timezone} />
+```
+
+显示发布日期、更新日期、阅读时长、作者、置顶标记，本地草稿预览时还会显示“尚未发布”。
+
+## ArticleLinks
+
+```astro
+<ArticleLinks page={page} />
+```
+
+放在文章末尾：系列目录、相关文章、上一篇/下一篇。数据都是 Core 排好的，没有的部分不显示。
+
+## Image
+
+包了一层 Astro 的 `<Image>`，同时接受字符串地址和 Core 给的图片对象（比如 `theme.site.profile.avatar`）：
+
+```astro
+<Image src={theme.site.profile.avatar} alt={theme.site.profile.name} width={96} height={96} />
+```
+
+`width` 和 `height` 必填。`widths`、`quality`、`format`、`layout`、`fit`、`priority` 等会原样交给 Astro，其他 HTML 属性也会转发。`src` 为空时显示一个占位头像。
+
+远程图片要能被优化，需要在站点的 `astro.config.mjs` 里允许对应域名，见 [站点配置](Configuration#额外的-astro-设置)。

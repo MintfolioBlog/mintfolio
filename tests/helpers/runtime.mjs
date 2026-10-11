@@ -5,9 +5,9 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const { createServer } = await import(pathToFileURL(createRequire(import.meta.resolve('astro')).resolve('vite')).href);
 
 /** Load real Core modules through Vite; only Astro's collection/config boundary is supplied by the fixture. */
-export async function runtime(t, { dev = false, previewDrafts = false, blog = [], pages = [], google = { measurementId: 'G-TEST123' } } = {}) {
+export async function runtime(t, { dev = false, previewDrafts = false, blog = [], pages = [], favicon, google = { measurementId: 'G-TEST123' } } = {}) {
   const collections = { blog, pages };
-  const config = { site: { title: 'Runtime fixture', url: 'https://example.test', language: 'en' }, blog: { pageSize: 2 },
+  const config = { site: { title: 'Runtime fixture', url: 'https://example.test', language: 'en', favicon }, blog: { pageSize: 2 },
     ...(google ? { analytics: { google } } : {}), profile: { avatar: '/avatar.svg' } };
   const prefix = String.fromCharCode(0) + 'fixture:';
   const modules = {

@@ -1,14 +1,18 @@
-**Mintfolio 手册**
+**[Mintfolio 手册](Home)**
 
-- [手册首页](Home)
+**使用**
+
 - [快速开始](Getting-Started)
+- [写文章](Writing)
 - [站点配置](Configuration)
-- [写作](Writing)
-- [博客功能](Blogging-Features)
-- [主题管理](Themes)
+- [主题](Themes)
 - [部署](Deployment)
+- [博客功能一览](Blogging-Features)
 - [命令行](CLI)
-- [主题开发](Theme-Development)
-- [API 参考](Theme-API)
-- [标准组件](Components)
 - [常见问题](Troubleshooting)
+
+**开发主题**
+
+- [从 Starter 创建主题](Theme-Development)
+- [Theme API](Theme-API)
+- [标准组件](Components)
