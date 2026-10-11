@@ -1,4 +1,4 @@
-import { unlockArticle, type ArticleUnlockError, type UnlockedArticle } from '@mintfolio/theme-api/client';
+import { unlockArticle, type ArticleUnlockError, type UnlockedArticle } from '@mintfolio/theme-api/protected-article';
 import type { Cleanup } from './lifecycle.js';
 
 export type ProtectedArticleStatus = 'locked' | 'unlocking' | 'unlocked';

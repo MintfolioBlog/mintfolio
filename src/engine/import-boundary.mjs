@@ -52,7 +52,7 @@ export async function readModuleImports(source, importer, { rejectComputedImport
  */
 export function assertPublicThemeSpecifier(specifier, importer) {
   if ((specifier === '@mintfolio/core' || specifier.startsWith('@mintfolio/core/')) &&
-    !['@mintfolio/core/theme', '@mintfolio/core/astro', '@mintfolio/core/client', '@mintfolio/core/search'].includes(specifier) &&
+    !['@mintfolio/core/theme', '@mintfolio/core/astro', '@mintfolio/core/client', '@mintfolio/core/search', ...['lifecycle', 'postList', 'protectedArticle', 'toc', 'lightbox', 'archive', 'code', 'navigation'].map((name) => '@mintfolio/core/client/' + name)].includes(specifier) &&
     !specifier.startsWith('@mintfolio/core/components/')) {
     throw new Error(`[theme:boundary] ${importer} cannot import host-only Core entry ${specifier}; use its public theme API`);
   }
