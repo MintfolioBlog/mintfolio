@@ -267,7 +267,7 @@ npm 包通过 `exports` 导出 `./theme`。显式包名无法解析时构建失�
 
 ## SDK 1.2 与 Core 0.4
 
-使用本节新增服务的主题声明 `manifest.engine: '^1.2.0'`，并将 Core peerDependency 设为 `^0.4.0`。旧的 `^1.1.0` 清单仍可在新 Runtime 加载；需要新增服务时应提高最低契约版本。SDK 与 Core 使用独立版本号。1.2 是本地开发版本，尚未发布 npm。
+使用本节新增服务的主题声明 `manifest.engine: '^1.2.0'`，并将 Core peerDependency 设为 `^0.4.0`。旧的 `^1.1.0` 清单仍可在新 Runtime 加载；需要新增服务时应提高最低契约版本。SDK 与 Core 使用独立版本号。1.2 与 Core 0.4 配套使用。
 
 ### 已有功能与公开接口
 
