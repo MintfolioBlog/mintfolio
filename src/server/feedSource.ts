@@ -1,5 +1,5 @@
 import type { PublicSite } from '@mintfolio/theme-api';
-import { getPublishedPosts, summarizePost } from './posts';
+import { getPublishedPosts, summarizePosts } from './posts';
 import { selectFeedPosts, type FeedOptions, type FeedPost } from './feeds';
 import { absoluteUrl } from './routing';
 import { prepareContentHtml } from './contentHtml';
@@ -12,7 +12,7 @@ import { prepareContentHtml } from './contentHtml';
 export async function getFeedPosts(site: PublicSite, options: FeedOptions = {}): Promise<FeedPost[]> {
   const entries = await getPublishedPosts();
   const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
-  const summaries = selectFeedPosts(site, entries.map((entry) => summarizePost(entry)), options);
+  const summaries = selectFeedPosts(site, summarizePosts(entries), options);
   if ((options.content ?? site.feed?.content ?? 'summary') !== 'full') return summaries;
   const [{ render }, { experimental_AstroContainer }] = await Promise.all([
     import('astro:content'), import('astro/container'),

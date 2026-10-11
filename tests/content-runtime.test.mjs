@@ -89,3 +89,17 @@ test('series query, pagination and full-text slices retain correct identities, o
   assert.equal(archive.seo.canonical, 'https://example.test/notes/series/Guide/page/2');
   await assert.rejects(archivePage(theme, { kind: 'series', label: 'Guide', number: 3 }), /Unknown archive page/);
 });
+
+test('batch summaries match individual projection and observe subsequent content edits', async t => {
+  const host=await runtime(t,{blog});
+  const {getVisiblePosts,summarizePost,summarizePosts}=await host.load('src/server/posts.ts');
+  const entries=await getVisiblePosts();
+  const batch=summarizePosts(entries);
+  assert.deepEqual(batch,entries.map(entry=>summarizePost(entry)));
+  entries[0].data.title='Edited title'; entries[0].body='New words from updated content';
+  const next=summarizePosts(entries);
+  assert.equal(next[0].title,'Edited title'); assert.notEqual(batch[0].title,next[0].title);
+  assert.deepEqual(next,entries.map(entry=>summarizePost(entry)));
+  assert.deepEqual(summarizePosts([]),[]);
+  assert.doesNotMatch(JSON.stringify(next),/PASSWORD_SENTINEL|PRIVATE_/);
+});

@@ -4,14 +4,9 @@ import { spawn } from 'node:child_process';
 import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cliVersion, createSite, doctor, requireThemeConfigRuntime, setupSite } from './lib/site.mjs';
-import { createPost, listPosts, setDraft } from './lib/posts.mjs';
-import { activeTheme, initThemeSettings, installTheme, listThemes, packageSpec, useTheme } from './lib/themes.mjs';
-import { configFilename, configSchema, getConfig, setConfig } from './lib/config.mjs';
 import { display, exists, findSite } from './lib/files.mjs';
 import { editFile, npm } from './lib/process.mjs';
-import { environmentText, runAstro, runCheck } from './lib/commands.mjs';
-import { canPrompt, chooseTheme, pickPost, promptNewPost, setupMenu, siteMenu } from './lib/interactive.mjs';
+import { cliVersion } from './lib/version.mjs';
 import { PROJECT_DIR } from '../src/shared/layout.mjs';
 
 const help = {
@@ -131,7 +126,6 @@ async function delegate(cwd, argv) {
 /** @param {string[]} argv Raw process arguments. @returns {Promise<void>} Dispatch one command and propagate failures. */
 async function main(argv) {
   const original = argv;
-  const interactive = canPrompt(argv);
   argv = argv.filter(arg => arg !== '--no-interactive');
   let cwd = process.cwd();
   if (['--cwd', '-C'].includes(argv[0])) {
@@ -146,17 +140,21 @@ async function main(argv) {
     const code = await delegate(cwd, original);
     if (code !== null) { process.exitCode = code; return; }
   }
+  // A delegated global CLI and help/version calls do not load the command graph.
+  const prompts = () => import('./lib/interactive.mjs');
+  const interactive = async () => Boolean(process.stdin.isTTY && process.stdout.isTTY)
+    && !original.includes('--no-interactive') && (await prompts()).canPrompt(original);
   if (command === undefined) {
-    if (!interactive) { printHelp(); return; }
+    if (!await interactive()) { printHelp(); return; }
     let root;
     try { root = await findSite(cwd); }
     catch (error) {
       if (!error.message.includes(PROJECT_DIR)) throw error;
       if (error.message.includes('旧的站点布局')) throw error;
-      await setupMenu(cwd);
+      await (await prompts()).setupMenu(cwd);
       return;
     }
-    await siteMenu(root);
+    await (await prompts()).siteMenu(root);
     return;
   }
   const aliases = { 'theme:add': 'install', 'theme:init': 'init', 'theme:check': 'check' };
@@ -164,14 +162,16 @@ async function main(argv) {
   if (command === 'new') { command = 'post'; args.unshift('new'); }
 
   if (command === 'create') {
+    const { createSite } = await import('./lib/site.mjs');
     const parsed = options(args, { theme: { type: 'string' }, registry: { type: 'string' } });
     if (parsed.values.help) return printHelp(command);
-    if (!parsed.positionals.length && interactive) { await setupMenu(cwd); return; }
+    if (!parsed.positionals.length && await interactive()) { await (await prompts()).setupMenu(cwd); return; }
     count(parsed.positionals, 1, 1, command);
     await createSite(path.resolve(cwd, parsed.positionals[0]), parsed.values);
     return;
   }
   if (command === 'init') {
+    const { setupSite } = await import('./lib/site.mjs');
     const parsed = options(args, { theme: { type: 'string' }, registry: { type: 'string' } });
     if (parsed.values.help) return printHelp(command);
     count(parsed.positionals, 0, 0, command);
@@ -180,6 +180,7 @@ async function main(argv) {
     return;
   }
   if (command === 'upgrade') {
+    const { packageSpec } = await import('./lib/themes.mjs');
     const parsed = options(args, { version: { type: 'string' } });
     if (parsed.values.help) return printHelp(command);
     count(parsed.positionals, 0, 0, command);
@@ -190,6 +191,7 @@ async function main(argv) {
     return;
   }
   if (['dev', 'build', 'preview', 'sync'].includes(command)) {
+    const { runAstro } = await import('./lib/commands.mjs');
     if (args.includes('--help') || args.includes('-h')) return printHelp(command);
     const draftFlags = args.filter(arg => /^--drafts(?:=|$)/.test(arg));
     if (draftFlags.length && command !== 'dev') throw new Error('--drafts 仅适用于 mintfolio dev。');
@@ -199,6 +201,7 @@ async function main(argv) {
     return;
   }
   if (command === 'post') {
+    const { createPost, listPosts, setDraft } = await import('./lib/posts.mjs');
     const [action, ...rest] = args;
     if (!action || action === '--help' || action === '-h') return printHelp(command);
     const definitions = action === 'new' ? { slug: { type: 'string' }, description: { type: 'string' }, category: { type: 'string' }, tags: { type: 'string' }, date: { type: 'string' }, publish: { type: 'boolean' } }
@@ -207,9 +210,9 @@ async function main(argv) {
     if (parsed.values.help) return printHelp(command);
     if (!['new', 'list', 'publish', 'draft'].includes(action)) throw new Error(`未知文章操作：${action}`);
     const root = await findSite(cwd);
-    if (action !== 'list' && !parsed.positionals.length && interactive) {
-      if (action === 'new') { await promptNewPost(root, parsed.values); return; }
-      const post = await pickPost(root, action === 'publish' ? '发布哪篇草稿？' : '把哪篇文章设为草稿？', post => post.draft === (action === 'publish'));
+    if (action !== 'list' && !parsed.positionals.length && await interactive()) {
+      if (action === 'new') { await (await prompts()).promptNewPost(root, parsed.values); return; }
+      const post = await (await prompts()).pickPost(root, action === 'publish' ? '发布哪篇草稿？' : '把哪篇文章设为草稿？', post => post.draft === (action === 'publish'));
       if (!post) return;
       parsed.positionals.push(post.slug);
     }
@@ -236,6 +239,8 @@ async function main(argv) {
     return;
   }
   if (command === 'theme') {
+    const { activeTheme, initThemeSettings, installTheme, listThemes, packageSpec, useTheme } = await import('./lib/themes.mjs');
+    const { requireThemeConfigRuntime } = await import('./lib/site.mjs');
     const [action, ...rest] = args;
     if (!action || action === '--help' || action === '-h') return printHelp(command);
     const parsed = options(rest, action === 'install' ? { use: { type: 'boolean' } } : action === 'list' ? { json: { type: 'boolean' } } : {});
@@ -243,7 +248,7 @@ async function main(argv) {
     if (action === 'sync') throw new Error('theme sync 已移除：主题设置统一写在 theme.config.mjs 的 settings 中。');
     if (!['list', 'current', 'install', 'use', 'init', 'check'].includes(action)) throw new Error(`未知主题操作：${action}`);
     const root = await findSite(cwd);
-    if (action === 'use' && !parsed.positionals.length && interactive) { await requireThemeConfigRuntime(root); await chooseTheme(root); return; }
+    if (action === 'use' && !parsed.positionals.length && await interactive()) { await requireThemeConfigRuntime(root); await (await prompts()).chooseTheme(root); return; }
     const required = ['install', 'use'].includes(action);
     count(parsed.positionals, required ? 1 : 0, ['install', 'use', 'check'].includes(action) ? 1 : 0, command);
     if (action === 'list') {
@@ -263,6 +268,8 @@ async function main(argv) {
     return;
   }
   if (command === 'config') {
+    const { configFilename, configSchema, getConfig, setConfig } = await import('./lib/config.mjs');
+    const { requireThemeConfigRuntime } = await import('./lib/site.mjs');
     const [action, ...rest] = args;
     if (!action || action === '--help' || action === '-h') return printHelp(command);
     const definitions = { theme: { type: 'string' }, ...(action === 'set' ? { json: { type: 'boolean' } } : {}), ...(action === 'edit' ? { editor: { type: 'string' } } : {}) };
@@ -290,6 +297,8 @@ async function main(argv) {
     return;
   }
   if (command === 'doctor' || command === 'check') {
+    const { doctor } = await import('./lib/site.mjs');
+    const { environmentText, runCheck } = await import('./lib/commands.mjs');
     const parsed = options(args, { json: { type: 'boolean' } });
     if (parsed.values.help) return printHelp(command);
     count(parsed.positionals, 0, 0, command);

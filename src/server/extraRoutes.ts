@@ -1,5 +1,5 @@
 import type { PostSummary } from '@mintfolio/theme-api';
-import { getVisiblePosts, getPublishedPosts, summarizePost, collectTaxonomy } from './posts';
+import { getVisiblePosts, getPublishedPosts, summarizePosts, collectTaxonomy } from './posts';
 import { getPageEntries, summarizePage, type InternalPage } from './pagesContent';
 import { getPublicSite } from './site';
 import { urls, routePath, deploymentBase } from './routing';
@@ -25,12 +25,12 @@ function archiveRoutes(posts:PostSummary[]):Extract<ExtraRoute,{kind:'archive'}>
   return result;
 }
 /** Public archive locations can also be included in the sitemap. */
-export async function getArchiveRoutes() { return archiveRoutes((await getPublishedPosts()).map(entry=>summarizePost(entry))).map(route=>({url:route.url,title:route.label??'全部文章'})); }
+export async function getArchiveRoutes() { return archiveRoutes(summarizePosts(await getPublishedPosts())).map(route=>({url:route.url,title:route.label??'全部文章'})); }
 
 /** Resolve all optional routes and fail before ambiguous output overwrites any file. */
 export async function getExtraRoutes():Promise<ExtraRoute[]> {
   const [entries,pages]=await Promise.all([getVisiblePosts(),getPageEntries(true)]);
-  const posts=entries.map(entry=>summarizePost(entry));
+  const posts=summarizePosts(entries);
   const result:ExtraRoute[]=archiveRoutes(posts);
   const used=new Set(['/', '/blog','/about','/404','/404.html','/rss.xml','/feed.json','/atom.xml','/sitemap.xml','/robots.txt','/search-index.json']);
   const key=(url:string)=>decodeURIComponent(routePath(url)).normalize('NFC').replace(/\/$/,'').toLowerCase();

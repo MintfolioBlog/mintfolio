@@ -16,12 +16,12 @@ function pageNumber(value:number|undefined,field:string,fallback:number):number 
 /** Context is scoped to a render so local edits cannot be hidden by a global cache. */
 export async function createThemeContext(active:ActiveTheme):Promise<ThemeContext> {
   const entries=await getVisiblePosts();
-  const posts=entries.map(entry=>summarizePost(entry));
   const site=getPublicSite();
+  const posts=entries.map(entry=>summarizePost(entry,site));
   if(posts.some(post=>post.protected)&&!active.definition.capabilities.encryptedPosts) throw new Error('[theme:capability] '+active.definition.manifest.id+' does not support encryptedPosts');
   // Search is always public even in preview mode. Private prose is never parsed.
   const searchIndex=async()=> (await getPublishedPosts()).filter(entry=>!entry.data.seo?.noindex).map(entry=>{
-    const post=summarizePost(entry);return createSearchEntry(post,post.protected?undefined:getPostProse(entry).text);
+    const post=summarizePost(entry,site);return createSearchEntry(post,post.protected?undefined:getPostProse(entry).text);
   });
   return {site,settings:active.settings,
     navigation:config.navigation?.map(link=>({...link,url:resolveAsset(link.url)}))??[
