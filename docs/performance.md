@@ -43,3 +43,7 @@ node tools/benchmark-content.mjs --counts 1000 --paragraphs 40 --iterations 50
 - 先跑 100 篇确认没问题，再跑 1000 篇。要下结论的对比，前后各跑三次。
 - 生成的文章之间有重复段落，gzip 压缩率会比真实文章好看。上线前用真实内容再看一次。
 - Node 里搜得快不代表手机上也快。真关心体验，要在目标浏览器里看下载、解析和输入时的卡顿。
+
+## 客户端按功能导入
+
+主题可使用 `@mintfolio/core/client/lifecycle`、`/client/postList`、`/client/protectedArticle`、`/client/toc`、`/client/lightbox`、`/client/archive`、`/client/code` 和 `/client/navigation`。原 `/client` 继续兼容。独立入口避免普通页面加载无关控制器；搜索纯函数使用 SDK 的 `/search`。

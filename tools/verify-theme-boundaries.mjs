@@ -37,6 +37,15 @@ async function build(root, cli) {
  */
 const cases = [
   {
+    name: 'focused-public-controller-entry', allowed: true,
+    home: `---\nimport { createPostListController } from '@mintfolio/core/client/postList';\nconst list = createPostListController({items: [], index: x => x});\n---\n<main>FOCUSED_CONTROLLER_OK {list.value().total}</main>`,
+    expectedText: ['FOCUSED_CONTROLLER_OK'],
+  },
+  {
+    name: 'unexported-client-entry', allowed: false,
+    home: `---\nimport '@mintfolio/core/client/private';\n---\n<main>private</main>`,
+  },
+  {
     name: 'public-core-components-and-controller', allowed: true,
     home: `---\nimport SeoHead from '@mintfolio/core/components/SeoHead.astro';\nimport { createPostListController } from '@mintfolio/core/client';\nconst list = createPostListController({items: [], index: () => {throw new Error('empty');}});\nconst seo = {title: 'CORE_PUBLIC_OK', description: '', language: 'en', canonical: 'https://fixture.example/', robots: 'index,follow' as const};\n---\n<html><head><SeoHead seo={seo} /></head><body><main>CORE_PUBLIC_OK {list.value().total}</main></body></html>`,
     expectedText: ['CORE_PUBLIC_OK'],
