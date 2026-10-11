@@ -195,7 +195,7 @@ export async function editThemeSettings(root) {
 }
 
 const SITE_FIELDS = [
-  ['site.title', '网站标题'], ['site.description', '网站描述'], ['site.url', '正式网址'], ['site.language', '语言'],
+  ['site.title', '网站标题'], ['site.description', '网站描述'], ['site.url', '正式网址'], ['site.language', '语言'], ['site.favicon', '网站图标（留空使用主题默认）'],
   ['profile.name', '作者名'], ['profile.bio', '个人简介'], ['profile.location', '所在地'], ['profile.signature', '个性签名'],
   ['contact.email', '联系邮箱'], ['icp', 'ICP 备案号'],
 ];

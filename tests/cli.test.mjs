@@ -409,3 +409,16 @@ test('runtime files are generated under .generated and legacy layout files fail 
   await mkdir(path.join(path.dirname(root), 'content/blog'), { recursive: true });
   await assert.rejects(prepareRuntime(root), error => ['src/content.config.ts', 'theme-verdant.config.mjs', 'astro.config.mjs 不再需要', 'content/blog/ 中的文章移到站点根目录'].every(text => error.message.includes(text)));
 });
+
+
+test('favicon CLI edits validate the URL before touching the site file and support restoring defaults', async t => {
+  const root = await fixture(t);
+  const filename = path.join(root, 'site.config.ts');
+  await setConfig(root, 'site', 'site.favicon', '/favicon.ico?v=2');
+  assert.equal(await getConfig(root, 'site', 'site.favicon'), '/favicon.ico?v=2');
+  const original = await readFile(filename, 'utf8');
+  await assert.rejects(setConfig(root, 'site', 'site.favicon', 'javascript:alert(1)'));
+  assert.equal(await readFile(filename, 'utf8'), original);
+  await setConfig(root, 'site', 'site.favicon', '');
+  assert.equal(await getConfig(root, 'site', 'site.favicon'), '');
+});

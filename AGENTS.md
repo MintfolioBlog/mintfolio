@@ -9,6 +9,7 @@
 - vendor contains actual unpublished dependency archives pinned by package-lock.json. Update them through npm run deps:update; preserve semver declarations in package.json.
 - Commit only source, docs, lockfiles and required vendor packages. Ignore node_modules, dist, artifacts and caches.
 - Use focused English feat:/fix:/refactor: commits; user-facing documentation is Chinese.
+- docs/cli.md, docs/deployment.md and docs/theme-api.md are mirrored as docs/wiki/CLI.md, Deployment.md and Theme-API.md; keep each pair identical and use absolute URLs for links inside them.
 
 ```sh
 npm ci

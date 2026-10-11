@@ -1,10 +1,14 @@
 // Sites have no tsconfig.json; this gives site.config.ts the types for image imports.
 /// <reference types="astro/client" preserve="true" />
+import { normalizeFavicon } from '../../src/shared/favicon.mjs';
 import type { ContactInfo, Project, PublicProfile, SkillCategory, SocialLink, PublicAuthor, NavigationLink, AnalyticsConfig } from '@mintfolio/theme-api';
 
 /** Host-owned content. Theme-specific display settings belong in theme.config.mjs. */
 export interface SiteConfig {
-  site: { title: string; url: string; description: string; language: string };
+  site: { title: string; url: string; description: string; language: string;
+    /** Public icon path or HTTP(S) URL; omit or leave blank to use the theme default. */
+    favicon?: string;
+  };
   profile: PublicProfile;
   social: SocialLink[];
   skills: SkillCategory[];
@@ -45,6 +49,7 @@ export interface SiteConfigInput {
  * @throws On invalid site URLs, content options or Google Analytics settings.
  */
 export function defineSiteConfig(input: SiteConfigInput): SiteConfig {
+  const favicon = normalizeFavicon(input.site.favicon);
   const url = new URL(input.site.url);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('[mintfolio:config] site.url must use HTTP or HTTPS');
   if (!input.site.title.trim()) throw new Error('[mintfolio:config] site.title must not be empty');
@@ -82,7 +87,7 @@ export function defineSiteConfig(input: SiteConfigInput): SiteConfig {
     feed: { limit, content: input.feed?.content ?? 'summary' },
     seo: input.seo ?? {}, authors: input.authors ?? [],
     ...(input.navigation ? { navigation: input.navigation } : {}),
-    site: { description: '', language: 'zh-CN', ...input.site },
+    site: { description: '', language: 'zh-CN', ...input.site, favicon },
     profile: { name: input.site.title, avatar: '', bio: '', location: '', signature: '', ...input.profile },
     social: input.social ?? [],
     skills: input.skills ?? [],

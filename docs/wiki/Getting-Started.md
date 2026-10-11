@@ -1,46 +1,81 @@
 # 快速开始
 
-需要 Node.js 22.12.0 或更高版本，以及随 Node.js 安装的 npm。建议使用仍受支持的 Node.js LTS 版本。
+需要 [Node.js](https://nodejs.org/) 22.12.0 或更高版本。
 
-## 创建站点
+## 建站
 
 ```sh
 npm install -g @mintfolio/core
-mintfolio create my-blog --theme verdant
+mintfolio create my-blog
 cd my-blog
 mintfolio dev
 ```
 
-打开终端显示的预览地址。首次创建会安装依赖、写入站点基础文件，并安装及启用 Verdant。若省略 `--theme verdant`，会使用 Core 自带的 Minimal。
+打开终端里显示的地址（通常是 `http://localhost:4321`），就能看到网站了。里面有一篇示例文章。
 
-## 认识站点目录
+想一开始就用 Verdant 主题，把第二条换成 `mintfolio create my-blog --theme verdant`。
 
-| 路径 | 用途 |
-| --- | --- |
-| `*.md`、子目录里的 `*.md` | 文章：站点根目录就是文章目录 |
-| `_mintfolio/site.config.ts` | 标题、正式域名、简介和个人资料 |
-| `_mintfolio/theme.config.mjs` | 当前主题和主题设置 |
-| `_mintfolio/pages/` | 独立页面 |
-| `_mintfolio/public/` | 直接复制到构建产物的静态资源 |
-| `_mintfolio/package.json` | 依赖；`node_modules/` 和构建输出 `dist/` 也在这里 |
+已经有一个放 Markdown 笔记的文件夹？不用 `create`，进那个文件夹运行 `mintfolio init`。原来的文件不会被改动。
 
-以 `_` 或 `.` 开头的文件和目录，以及 README 等仓库说明文件不会作为文章发布。Astro 所需的配置和内容集合由 Core 在 `_mintfolio/.generated/` 中生成，不需要管理。
+## 看看目录
 
-在站点里直接运行 `mintfolio` 会打开菜单，可以完成写文章、预览、构建和调整主题等常用操作。
+```
+my-blog/
+  hello.md              示例文章
+  _mintfolio/
+    site.config.ts      站点资料
+    theme.config.mjs    主题
+    pages/links.md      一个独立页面，对应 /links
+    public/             图片等静态文件
+```
 
-先将 `site.config.ts` 的标题与 URL 改成自己的，再创建文章：
+规则只有一条：**根目录（和子目录）里的 `.md` 都是文章，`_mintfolio/` 里是其他所有东西。** 以 `_` 或 `.` 开头的文件和目录、README 这类说明文件不会被当成文章。
+
+## 改成你自己的
+
+打开 `_mintfolio/site.config.ts`，把标题、网址、名字换掉：
+
+```ts
+export default defineSiteConfig({
+  site: { title: '我的博客', description: '记录与分享', url: 'https://example.com', language: 'zh-CN' },
+  profile: { name: '作者', bio: '欢迎来到我的博客。' },
+});
+```
+
+开发服务开着的话，保存后页面会自动刷新。更多字段见 [站点配置](Configuration)。
+
+## 写第一篇文章
+
+最简单的方式是直接运行 `mintfolio`，在菜单里选“写一篇新文章”。也可以用命令：
 
 ```sh
 mintfolio post new "你好，世界" --slug hello-world
-mintfolio post publish hello-world
-mintfolio build
-mintfolio preview
 ```
 
-新文章默认是草稿。`publish` 让文章进入下次构建；上传构建结果是独立的[部署步骤](Deployment)。
+这会在根目录生成 `hello-world.md`。新文章默认是草稿，普通的 `mintfolio dev` 看不到它，要这样预览：
 
-## 已有站点
+```sh
+mintfolio dev --drafts
+```
 
-在已有 Astro 项目里安装 Core 后，运行 `mintfolio init` 补齐配置。初始化保留已有文件；请检查现有 Astro integration、内容集合与路由是否冲突。
+写好了就发布：
 
-全局 CLI 和站点依赖是两个独立版本。运行 `mintfolio doctor` 查看诊断，使用 `mintfolio upgrade` 更新站点 Core。更新后重启开发服务。
+```sh
+mintfolio post publish hello-world
+```
+
+frontmatter 有哪些字段、怎么放图片、怎么设密码，见 [写文章](Writing)。
+
+## 上线
+
+```sh
+mintfolio build
+```
+
+把 `_mintfolio/dist/` 整个上传到任意静态托管就行。各平台怎么设置见 [部署](Deployment)。
+
+## 以后
+
+- 升级这个站点用的 Mintfolio：`mintfolio upgrade`
+- 出问题先跑：`mintfolio doctor`
+- 记不住命令：直接运行 `mintfolio` 用菜单

@@ -1,37 +1,52 @@
 # 常见问题
 
-## 修改后没有变化
-
-确认终端的站点目录与浏览器访问的地址一致。修改主题选择、manifest 或依赖后重启开发服务；普通专属配置文件的变化会由开发服务监听。
+遇到问题先跑这个，它会告诉你 Node、Core、Astro、主题的版本和配置状态：
 
 ```sh
 mintfolio doctor
-mintfolio theme current
-mintfolio theme check
 ```
 
-全局 CLI 和站点 Core 版本可能不同，doctor 会分别报告。
+## 改了东西，页面没变化
 
-## 新文章没有出现在列表里
+- 改文章、`site.config.ts`、主题设置：开发服务会自动刷新。没刷新就手动刷一下浏览器。
+- 换主题、升级依赖：需要重启 `mintfolio dev`。
+- 确认终端所在的站点就是你正在改的那个（特别是同时开了好几个站点时）。
 
-检查文章是否仍为 `draft: true`，以及文件是否位于站点根目录或其子目录中；以 `_` 或 `.` 开头的目录、`_mintfolio/` 和 README 等仓库说明文件不会发布。执行 `mintfolio post publish <id>` 后重新构建。
+## 新文章没出现
 
-## 配置校验失败
+按顺序排查：
 
-根据错误中的完整路径检查字段名、类型、数组条目和颜色格式。主题只接受其 schema 中声明的设置。切换主题时，将设置放入对应 `theme-<id>.config.mjs`，避免混用。
+1. 是不是草稿？`mintfolio post list --draft` 看一下。用命令新建的文章默认是草稿。
+2. `pubDate` 是不是在未来？`mintfolio post list --scheduled`。
+3. 文件放对地方了吗？在 `_` 或 `.` 开头的目录里、或者叫 `README.md` 之类，都不会被当成文章。
+4. 已经部署的网站：发布后要重新 `build` 并上传。
 
-## 密码正确却无法解锁
+## 提示“使用旧的站点布局”
 
-确认使用 HTTPS 或 localhost，检查浏览器错误，并用最新构建产物重试。文章 ID 与密文绑定，旧缓存或手动混用产物可能导致验证失败。不要把真实密码和正文贴到 Issue。
+0.4 改了目录结构，0.3 及以前的站点需要调整一次。按 [从旧布局升级](CLI#从旧布局升级) 的步骤做。
 
-## 搜索结果与预期不同
+## 主题设置报错
 
-搜索只检查标题及公开摘要，分类和标签按显示名称精确匹配。多个筛选条件组合生效；清空其他条件后再检查。静态页面上的筛选由浏览器执行。
+错误信息里会带字段的完整路径，比如 `sidebar.links.0.url`。对着检查拼写和类型；颜色要用 `#rrggbb` 这样的格式。
 
-## 自定义主题报导入边界错误
+`mintfolio config schema theme` 可以列出当前主题接受的所有字段。
 
-主题只能依赖公共 API、自身文件及渲染依赖。不能读取宿主配置、文章源文件、`astro:content` 或 Core 私有实现。使用 `Astro.props` 中的 `theme` 和 `page` 获取公开内容，见 [Theme API](Theme-API)。
+## 密码对了却解不开
+
+- 网站必须是 HTTPS（本地 localhost 也行）。用 `http://` 访问正式域名会失败。
+- 浏览器可能缓存了旧版本，强制刷新试试。
+- 别把不同次构建的文件混着上传，每次都传完整的 `dist`。
+
+## 构建报“导入边界”错误
+
+一般出现在自己写的主题或页面覆盖里：主题只能用 Mintfolio 提供的公开接口，不能直接读站点配置、文章文件或 `astro:content`。从 `Astro.props` 里的 `theme` 和 `page` 拿数据，见 [Theme API](Theme-API)。
+
+## 子目录部署后图片或链接 404
+
+确认 `_mintfolio/astro.config.mjs` 里设了 `base`，并且改完之后**重新构建**了。见 [部署](Deployment#部署到子目录)。
 
 ## 提交问题
 
-附上 `mintfolio doctor` 的脱敏结果、操作步骤、实际与预期行为，以及最小复现。与特定主题相关的问题提交到该主题仓库；涉及内容、路由或 CLI 的问题提交到 Core。
+请带上 `mintfolio doctor` 的输出、操作步骤、期望和实际的结果。别把真实密码和私密文章贴出来。
+
+主题显示上的问题提到对应主题的仓库；内容、路由、命令行的问题提到 [mintfolio](https://github.com/MintfolioBlog/mintfolio/issues)。

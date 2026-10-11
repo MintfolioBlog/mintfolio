@@ -1,4 +1,5 @@
 ---
+import faviconUrl from '../assets/favicon.svg?url';
 import SeoHead from '@mintfolio/theme-api/SeoHead.astro';
 import '../styles/minimal.css';
 import type { MinimalSettings } from '../settings';
@@ -30,7 +31,7 @@ const accent = typeof settings.accentColor === 'string' && /^#(?:[\da-f]{3}|[\da
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <SeoHead seo={seo} />
+    <SeoHead seo={seo} faviconFallback={faviconUrl} />
   </head>
   <body style={`--minimal-width: ${width}px; --minimal-accent: ${accent};`}>
     <div class="minimal-shell">

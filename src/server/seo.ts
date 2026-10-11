@@ -37,6 +37,7 @@ export function pageSeo(
     robots: noindex ? 'noindex,nofollow' : 'index,follow',
     type: post ? 'article' : 'website',
     siteName: site.title,
+    ...(site.favicon ? { favicon: site.favicon } : {}),
     twitterCard: image ? 'summary_large_image' : 'summary',
     ...(site.seo?.twitterSite ? { twitterSite: site.seo.twitterSite } : {}),
     ...(image ? { image, imageAlt: (privatePage ? undefined : metadata?.imageAlt) ?? post?.title ?? site.title } : {}),

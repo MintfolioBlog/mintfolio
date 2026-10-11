@@ -1,22 +1,33 @@
 # 更新记录
 
+## 0.4.1
+
+- 支持站点 `site.favicon`，统一 CLI 验证、部署 base 路径和全部页面头部数据；主题未配置时使用默认图标。
+- 依赖 Theme API 1.3，内置 Minimal 支持同一配置。
+
 ## 0.4.0
 
-- 补齐 Theme API 1.2：独立页面查询、系列目录、系列搜索筛选、统一静态分页与搜索/robots/资源 URL、搜索响应类型、页面与设置类型推导；同步 Core 0.4 主题开发文档。
+**不兼容变更**：站点目录结构变了。现在站点根目录就是文章目录，其他所有东西都放进 `_mintfolio/`。旧站点运行新版命令时会列出需要调整的文件并停下，按 [从旧布局升级](docs/cli.md#从旧布局升级) 改一次即可。
 
-不兼容变更：站点根目录就是文章目录，其他文件都在 `_mintfolio/` 中。升级步骤见 [命令行文档](docs/cli.md#从旧布局升级)。
+站点结构
 
-- 站点根目录及子目录中的 Markdown 都是文章；`_`、`.` 开头的路径和 README 等仓库说明文件除外。站点资料、主题、独立页面（`_mintfolio/pages`）、静态文件、`package.json` 与构建输出都在 `_mintfolio/`。
-- 不带参数运行 `mintfolio` 打开交互菜单：写文章、管理文章、预览、构建、按字段调整主题设置、修改站点资料等；在非站点目录会引导创建站点。
-- 命令缺少参数时在终端中逐项询问（`post new/publish/draft`、`theme use`、`create`）；CI、管道或 `--no-interactive` 下保持原有报错行为。
-- `mintfolio init` 可把已有的笔记目录变成站点，自动安装 Core，已有文章保持原样。
-- 全局安装的 `mintfolio` 会把命令交给站点 `_mintfolio/` 中安装的 Core 执行。
-- CLI 在运行 Astro 前于 `_mintfolio/.generated/` 生成 Astro 配置和内容集合，站点不再需要 `astro.config.mjs`、`src/content.config.ts` 和 `tsconfig.json`；开发服务器允许读取文章旁的图片。
-- 可选的 `_mintfolio/astro.config.mjs` 只用于额外 Astro 设置（如 `base`），由 Core 合并；`--config`、`--root` 由 CLI 指定。
-- 主题设置统一写在 `theme.config.mjs` 的 `settings`，不再生成或读取 `theme-*.config.mjs`；`theme use` 写入新主题带注释的模板，原设置保存在备份中。
-- 移除 `theme sync`；`theme init` 改为在 `settings` 为空时写入当前主题模板。
-- 发现旧布局文件时，命令列出需要处理的文件并停止，避免旧设置被悄悄忽略。
-- 备份位于 `_mintfolio/.backups/`，与 `.generated/` 一样自带忽略规则；`site.config.ts` 无需 `tsconfig.json` 即可获得图片导入的类型。
+- 根目录及子目录里的 Markdown 都是文章；`_`、`.` 开头的路径和 README 等仓库说明文件除外。站点资料、主题、独立页面（`_mintfolio/pages`）、静态文件、`package.json` 和构建输出都在 `_mintfolio/`。
+- 站点不再需要 `astro.config.mjs`、`src/content.config.ts` 和 `tsconfig.json`，CLI 每次运行前在 `_mintfolio/.generated/` 里生成。需要额外 Astro 设置（如 `base`）时，写一个只含这些设置的 `_mintfolio/astro.config.mjs`。
+- 文章可以用相对路径引用旁边的图片。
+- 备份放在 `_mintfolio/.backups/`，和 `.generated/` 一样不会进 Git。
+
+命令行
+
+- 不带参数运行 `mintfolio` 打开交互菜单：写文章、管理文章、预览、构建、调整主题设置、修改站点资料。在非站点目录会引导建站。
+- 命令缺参数时在终端里追问；在 CI、管道或加 `--no-interactive` 时仍然直接报错。
+- `mintfolio init` 可以把已有的笔记目录变成站点，原有文章不动。
+- 全局安装的 `mintfolio` 会把命令交给站点自己安装的 Core 执行。
+
+主题
+
+- 主题设置统一写在 `theme.config.mjs` 的 `settings` 里，不再使用 `theme-*.config.mjs`。`theme use` 会写入新主题带注释的完整设置模板，旧设置留在备份中。
+- 移除 `theme sync`；`theme init` 改为只在 `settings` 为空时写入模板。
+- Theme API 升到 1.2：新增独立页面查询、系列目录和系列筛选、`ThemePageProps` 类型推导，搜索索引、robots 和静态资源也有了统一的 URL 方法（支持子目录部署）。
 
 ## 0.3.0
 
@@ -24,7 +35,6 @@
 - 正文表格在构建时生成可聚焦滚动区域，公开文章关闭 JavaScript 仍可阅读宽表格。
 - CLI 将草稿、未来定时和可参与构建状态分开显示；发布时间保留完整 UTC 时间。
 - 新增可选 100/1000 篇真实构建与搜索基准工具及部署说明。
-
 - 新增静态分页、标签/分类/系列页面、独立 Markdown 页面和自定义导航。
 - 文章支持固定 slug、aliases、更新时间、作者、置顶、系列、阅读统计和相关文章。
 - 统一草稿与未来文章发布策略，`dev --drafts` 仅在本地预览，生产输出始终排除。
@@ -37,7 +47,6 @@
 
 - 统一 Verdant 的包名、主题 ID、配置文件、类型名称和 CLI 简写。
 - 官方主题使用 `@mintfolio/theme-verdant`，设置保存在 `theme-verdant.config.mjs`。
-
 
 ## 0.1.5
 
