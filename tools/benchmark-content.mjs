@@ -130,8 +130,9 @@ function article(index, paragraphs) {
 
 /** Create a real consuming site using only Core public exports and Minimal. */
 async function fixture(runRoot, count, paragraphs) {
-  const root = inside(runRoot, `posts-${count}`);
-  await mkdir(path.join(root, 'content', 'blog'), { recursive: true });
+  // Each corpus is a separate modern site; Core reads articles above _mintfolio.
+  const site = inside(runRoot, `posts-${count}`);
+  const root = path.join(site, '_mintfolio');
   await mkdir(path.join(root, 'src'), { recursive: true });
   await mkdir(path.join(root, 'public'), { recursive: true });
   const files = {
@@ -146,7 +147,7 @@ async function fixture(runRoot, count, paragraphs) {
   for (let index = 0; index < count; index += 1) {
     const source = article(index, paragraphs);
     markdownBytes += Buffer.byteLength(source);
-    await writeFile(path.join(root, 'content', 'blog', `post-${String(index).padStart(6, '0')}.md`), source);
+    await writeFile(path.join(site, `post-${String(index).padStart(6, '0')}.md`), source);
   }
   return { root, markdownBytes };
 }

@@ -10,8 +10,8 @@ import { getConfig } from './config.mjs';
 import { assertCurrentLayout } from './runtime.mjs';
 import { PROJECT_DIR } from '../../src/shared/layout.mjs';
 
-/** @returns {Promise<string>} Version of the executing CLI package. */
-export async function cliVersion() { return JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')).version; }
+import { cliVersion } from './version.mjs';
+export { cliVersion } from './version.mjs';
 
 /** @param {string} root Site root. Reject theme-file editing against engines that cannot read those files. */
 export async function requireThemeConfigRuntime(root) {

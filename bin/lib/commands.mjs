@@ -1,7 +1,6 @@
 import { astroEntry, run } from './process.mjs';
 import { astroArgs, prepareRuntime } from './runtime.mjs';
 import { doctor } from './site.mjs';
-import { checkContent } from './content-check.mjs';
 import { siteRootOf } from '../../src/shared/layout.mjs';
 
 /**
@@ -52,6 +51,7 @@ export async function runCheck(root, options = {}) {
   }
   // Source diagnostics still help when Astro rejects a collection schema.
   try {
+    const { checkContent } = await import('./content-check.mjs');
     result.content = await checkContent(siteRootOf(root));
     if (result.content.errors.length) result.status = 'error';
   } catch {

@@ -1,4 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
+import type { PublicSite } from '@mintfolio/theme-api';
 import { previewDrafts, publishedBefore } from 'virtual:mintfolio/runtime';
 import { selectPublishedPosts, toPostSummary } from './postModel';
 import { getPublicSite } from './site';
@@ -24,11 +25,27 @@ export function getPostProse(post:InternalPost):{text:string;wordCount:number;re
   proseCache.set(post.id,next);
   return next;
 }
-/** Enrich safe metadata with configured authors and statistics from public prose only. */
-export function summarizePost(post:InternalPost) {
-  const summary=toPostSummary(post,{authors:getPublicSite().authors,preview:import.meta.env.DEV&&previewDrafts,now:import.meta.env.DEV?new Date():new Date(publishedBefore)});
+/**
+ * Enrich safe metadata without exposing protected prose.
+ * @param post Current validated collection entry.
+ * @param site Optional batch-scoped author projection; defaults to the current site.
+ * @returns A fresh public summary, with reading statistics only for unprotected content.
+ */
+export function summarizePost(post:InternalPost, site:Pick<PublicSite,'authors'>=getPublicSite()) {
+  const summary=toPostSummary(post,{authors:site.authors,preview:import.meta.env.DEV&&previewDrafts,now:import.meta.env.DEV?new Date():new Date(publishedBefore)});
   if(typeof summary.cover==='string') summary.cover=resolveAsset(summary.cover);
   if(summary.protected) return summary;
   const {wordCount,readingMinutes}=getPostProse(post);
   return {...summary,wordCount,readingMinutes};
+}
+
+/**
+ * @param posts Current validated entries; neither entries nor their order are mutated.
+ * @returns Fresh summaries sharing only one configuration read for this call.
+ * No configuration or summary cache survives this batch, so dev edits remain visible.
+ */
+export function summarizePosts(posts:readonly InternalPost[]) {
+  if(!posts.length) return [];
+  const site=getPublicSite();
+  return posts.map(post=>summarizePost(post,site));
 }

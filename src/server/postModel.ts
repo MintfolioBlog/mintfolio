@@ -103,9 +103,11 @@ export function collectTaxonomy(posts: readonly PostSummary[], kind: 'tags' | 'c
 /** UTC calendar groups are deterministic across Windows and Linux build hosts. */
 export function collectArchives(posts: readonly PostSummary[], timezone = 'UTC'): ArchivePeriod[] {
   const groups = new Map<string, ArchivePeriod>();
+  // Intl construction is expensive; one formatter serves this complete archive batch.
+  const formatter = posts.length ? new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: 'numeric' }) : null;
   for (const post of posts) {
     const date = new Date(post.publishedAt);
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: 'numeric' }).formatToParts(date);
+    const parts = formatter!.formatToParts(date);
     const year = Number(parts.find(part => part.type === 'year')!.value);
     const month = Number(parts.find(part => part.type === 'month')!.value);
     const id = `${year}-${String(month).padStart(2, '0')}`;
@@ -120,10 +122,16 @@ export function collectArchives(posts: readonly PostSummary[], timezone = 'UTC')
 /** Related public summaries rank by same series, shared tags, then category/date. */
 export function relatedPosts(posts: readonly PostSummary[], id: string, limit = 3): PostSummary[] {
   if(!Number.isSafeInteger(limit)||limit<0) throw new Error('related limit must be non-negative');
+  if(limit===0) return [];
   const current=posts.find(post=>post.id===id); if(!current) return [];
-  const score=(post:PostSummary)=> (current.series && current.series.id===post.series?.id ? 10 : 0)
-    + post.tags.filter(tag=>current.tags.some(item=>item.id===tag.id)).length*3
-    + (post.category.id===current.category.id ? 1 : 0);
-  return posts.filter(post=>post.id!==id && !post.preview && score(post)>0)
-    .toSorted((a,b)=>score(b)-score(a)||Date.parse(b.publishedAt)-Date.parse(a.publishedAt)).slice(0,limit);
+  const tags=new Set(current.tags.map(tag=>tag.id));
+  // Score each candidate once; sorting must not repeat tag intersections or date parsing.
+  const ranked=posts.filter(post=>post.id!==id && !post.preview).map(post=>({
+    post,
+    score:(current.series && current.series.id===post.series?.id ? 10 : 0)
+      + post.tags.filter(tag=>tags.has(tag.id)).length*3
+      + (post.category.id===current.category.id ? 1 : 0),
+    publishedAt:Date.parse(post.publishedAt),
+  })).filter(item=>item.score>0);
+  return ranked.toSorted((a,b)=>b.score-a.score||b.publishedAt-a.publishedAt).slice(0,limit).map(item=>item.post);
 }

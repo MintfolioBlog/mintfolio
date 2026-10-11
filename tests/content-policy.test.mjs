@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createSearchEntry, filterPosts, searchPosts } from '@mintfolio/theme-api/search';
 import {
   collectArchives, collectTaxonomy, isProtectedPost, PROTECTED_POST_DESCRIPTION,
-  selectPublishedPosts, toPostSummary, UNCATEGORIZED,
+  selectPublishedPosts, toPostSummary, UNCATEGORIZED, relatedPosts,
 } from '../src/server/postModel.ts';
 import { urls } from '../src/server/routing.ts';
 
@@ -130,4 +130,29 @@ test('taxonomy routes are portable and preserve encoded labels and combined filt
   assert.equal(paged.pathname,'/tags/Web/page/2');
   assert.equal(paged.searchParams.get('q'),'Astro 中文');
   assert.equal(paged.searchParams.get('category'),'技术');
+});
+
+test('archive grouping respects the requested timezone at month boundaries and preserves references', () => {
+  const first=toPostSummary(record('first',{pubDate:new Date('2026-02-01T00:30:00Z')}));
+  const second=toPostSummary(record('second',{pubDate:new Date('2026-01-31T23:30:00Z')}));
+  assert.deepEqual(collectArchives([first,second],'UTC').map(g=>[g.id,g.count]),[['2026-02',1],['2026-01',1]]);
+  const west=collectArchives([first,second],'America/Los_Angeles');
+  assert.equal(west.length,1); assert.equal(west[0].id,'2026-01');
+  assert.equal(west[0].posts[0],first); assert.equal(west[0].posts[1],second);
+  assert.deepEqual(collectArchives([],'Invalid/Zone'),[]);
+});
+
+test('related ranking preserves series priority, tag scores, ties, exclusions and source order', () => {
+  const summary=(id,data={})=>toPostSummary(record(id,data));
+  const current=summary('current',{tags:['a','b'],category:'one',series:'guide'});
+  const sameSeries=summary('series',{series:'guide',category:'other'});
+  const tags=summary('tags',{tags:['a','b'],category:'other'});
+  const tied1=summary('tie1',{tags:['a'],category:'other'}),tied2=summary('tie2',{tags:['a'],category:'other'});
+  const preview={...sameSeries,id:'preview',preview:true};
+  const items=[current,tied1,preview,tags,tied2,sameSeries,summary('none',{category:'other'})];
+  const original=[...items];
+  assert.deepEqual(relatedPosts(items,'current',10).map(p=>p.id),['series','tags','tie1','tie2']);
+  assert.equal(relatedPosts(items,'current',1)[0],sameSeries);
+  assert.deepEqual(items,original); assert.deepEqual(relatedPosts(items,'current',0),[]);
+  assert.throws(()=>relatedPosts(items,'current',-1));
 });

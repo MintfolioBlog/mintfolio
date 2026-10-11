@@ -47,3 +47,7 @@ node tools/benchmark-content.mjs --counts 1000 --paragraphs 40 --iterations 50
 ## 客户端按功能导入
 
 主题可使用 `@mintfolio/core/client/lifecycle`、`/client/postList`、`/client/protectedArticle`、`/client/toc`、`/client/lightbox`、`/client/archive`、`/client/code` 和 `/client/navigation`。原 `/client` 继续兼容。独立入口避免普通页面加载无关控制器；搜索纯函数使用 SDK 的 `/search`。
+
+## Core 内部重复工作
+
+CLI 按命令加载模块，帮助和版本查询不加载 YAML、配置 AST 解析器或交互菜单；全局 CLI 优先转交站点版本。文章列表按批次投影站点配置，不在每篇摘要中重新复制全部项目、技能和社交资料。月份归档在一次调用中复用日期格式化器，相关文章在排序前计算一次分数与时间戳。这些优化不改变主题接口、内容排序或加密规则，也不引入跨页面摘要缓存。
