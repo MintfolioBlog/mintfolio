@@ -79,7 +79,12 @@ export async function useTheme(root, selector) {
   const theme = normalizeThemeName(selector);
   const selection = await readSelection(root);
   const previous = normalizeThemeName(selection.theme || 'minimal');
-  if (theme === previous) { await activeTheme(root, theme); console.log(`当前已使用 ${theme}`); return; }
+  if (theme === previous) {
+    await activeTheme(root, theme);
+    const result = await initThemeSettings(root);
+    console.log(result.created ? `当前已使用 ${theme}，已补齐空的 settings 模板。` : `当前已使用 ${theme}`);
+    return;
+  }
   // Page overrides are intentional host choices; keep them and validate them with the new theme.
   await loadTheme({ root, theme, overrides: selection.overrides });
   const filename = path.join(root, 'theme.config.mjs');

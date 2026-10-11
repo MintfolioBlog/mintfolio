@@ -199,7 +199,7 @@ test('a package settings template keeps its comments and cannot escape its packa
   const pkg = {name:'@fixture/theme',type:'module',exports:{'./theme':'./theme.mjs'},mintfolio:{configTemplate:'./config.mjs'}};
   await writeFile(path.join(themeRoot,'package.json'),JSON.stringify(pkg));
   const defaults = resolveSettings(definition(),{});
-  await writeFile(path.join(themeRoot,'config.mjs'),`/** File note, not copied. */\nexport default {\n  // Author-provided instructions\n  heading: 'Notes',\n};\n`);
+  await writeFile(path.join(themeRoot,'config.mjs'),`/** File note, not copied. */\nexport default {\n  // Author-provided instructions\n  ...${JSON.stringify(defaults)},\n};\n`);
   const text = await settingsTemplate(root,'@fixture/theme');
   assert.ok(text.startsWith('{') && text.includes('// Author-provided instructions') && !text.includes('File note'));
   assert.deepEqual(resolveSettings(definition(), await evaluateTemplate(root, text, 'packaged')), defaults);
@@ -207,4 +207,33 @@ test('a package settings template keeps its comments and cannot escape its packa
   pkg.mintfolio.configTemplate = './../../../outside.mjs';
   await writeFile(path.join(themeRoot,'package.json'),JSON.stringify(pkg));
   await assert.rejects(settingsTemplate(root,'@fixture/theme'), /Template escapes/);
+});
+
+
+test('incomplete settings templates expand nested fields while retaining authored values', async t => {
+  const root = await projectFixture(t);
+  const themeRoot = path.join(root, 'theme');
+  const item = {type:'object',label:'Link',default:{},properties:{
+    title:{type:'string',label:'Title',default:'Untitled'},
+    url:{type:'string',label:'URL',default:'/'},
+  }};
+  const value = definition({settings:{...definition().settings,
+    panel:{type:'object',label:'Panel',default:{},properties:{enabled:{type:'boolean',label:'Enabled',default:true},links:{type:'array',label:'Links',default:[],items:item}}},
+    emptyLinks:{type:'array',label:'Empty links',default:[],items:item},
+    words:{type:'array',label:'Words',default:[],items:{type:'string',label:'Word',default:'example'}},
+  }});
+  await writeTheme(themeRoot, value);
+  await writeFile(path.join(themeRoot,'package.json'),JSON.stringify({name:'fixture',type:'module',mintfolio:{configTemplate:'./config.mjs'}}));
+  const authored = {heading:'Custom heading',panel:{links:[{title:'My link'}]}};
+  await writeFile(path.join(themeRoot,'config.mjs'),'export default '+JSON.stringify(authored)+';');
+  const text = await settingsTemplate(root,'./theme');
+  const generated = await evaluateTemplate(root,text,'complete');
+  assert.deepEqual(generated,resolveSettings(value,authored));
+  assert.deepEqual(generated.emptyLinks,[]);
+  assert.deepEqual(generated.words,[]);
+  assert.match(text,/可选值：quiet \/ bright/);
+  assert.match(text,/范围：480 至 1200/);
+  assert.match(text,/默认值：/);
+  assert.match(text,/\/\/ .*"url": "\/"/);
+  assert.match(text,/\/\/ "example",/);
 });

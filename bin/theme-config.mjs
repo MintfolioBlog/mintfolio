@@ -39,29 +39,47 @@ async function templateFor(manifestPath) {
   return null;
 }
 
-/** Render all schema fields, including commented examples for initially empty arrays. */
-function schemaSource(schema, values, depth=1) {
+/** Render nested values without hiding defaults or the structure of empty lists. */
+function valueSource(setting, value, depth) {
   const indent = '  '.repeat(depth);
-  return Object.entries(schema).flatMap(([name, setting]) => {
+  if (setting.type === 'object') return '{\n' + schemaSource(setting.properties, { ...setting.default, ...value }, depth + 1) + '\n' + indent + '}';
+  if (setting.type === 'array') {
+    if (value.length) return '[\n' + value.map(item => indent + '  ' + valueSource(setting.items, item, depth + 1) + ',').join('\n') + '\n' + indent + ']';
+    const example = valueSource(setting.items, setting.items.default, depth + 1);
+    return '[\n' + (indent + '  ' + example + ',').split('\n').map(line => indent + '  // ' + line.slice(indent.length + 2)).join('\n') + '\n' + indent + ']';
+  }
+  return JSON.stringify(value);
+}
+
+/** Render every declared field with its meaning, defaults, choices and bounds. */
+function schemaSource(schema, values, depth = 1) {
+  const indent = '  '.repeat(depth);
+  return Object.entries(schema).map(([name, setting]) => {
     const help = [setting.label, setting.description,
-      setting.type === 'select' ? `可选值：${setting.options.join(' / ')}` : null,
-      setting.type === 'number' ? `范围：${setting.min ?? '不限'} 至 ${setting.max ?? '不限'}` : null,
+      '默认值：' + JSON.stringify(setting.default),
+      setting.type === 'select' ? '可选值：' + setting.options.join(' / ') : null,
+      setting.type === 'number' ? '范围：' + (setting.min ?? '不限') + ' 至 ' + (setting.max ?? '不限') : null,
     ].filter(Boolean).join('；').replace(/[\r\n\u2028\u2029]+/g, ' ');
     const value = Object.hasOwn(values, name) ? values[name] : setting.default;
-    const key = JSON.stringify(name);
-    if (setting.type === 'object') return [`${indent}// ${help}`, `${indent}${key}: {`, schemaSource(setting.properties, value, depth+1), `${indent}},`];
-    if (setting.type === 'array' && value.length === 0 && setting.items.type === 'object') {
-      const sample = [`${indent}  {`,schemaSource(setting.items.properties,setting.items.default,depth+2),`${indent}  },`].join('\n').split('\n').map((line)=>`${indent}  // ${line.slice(indent.length+2)}`).join('\n');
-      return [`${indent}// ${help}`,`${indent}${key}: [`,sample,`${indent}],`];
-    }
-    return [`${indent}// ${help}`, `${indent}${key}: ${JSON.stringify(value)},`];
+    return indent + '// ' + help + '\n' + indent + JSON.stringify(name) + ': ' + valueSource(setting, value, depth) + ',';
   }).join('\n');
+}
+
+/** Detect omitted fields before schema defaults conceal an incomplete package template. */
+function completeFields(schema, values) {
+  return Object.entries(schema).every(([name, setting]) => Object.hasOwn(values, name) && completeValue(setting, values[name]));
+}
+
+function completeValue(setting, value) {
+  if (setting.type === 'object') return completeFields(setting.properties, value);
+  if (setting.type === 'array') return value.every(item => completeValue(setting.items, item));
+  return true;
 }
 
 /**
  * Commented settings for one theme, written into theme.config.mjs as `settings`.
  * A package template is validated against the same manifest that validates host
- * edits; themes without one get every schema field with its default.
+ * edits; missing fields fall back to schema rendering while retaining template values.
  * @param {string} root Host root with installed dependencies.
  * @param {string} theme Installed package, local theme selector, or Minimal.
  * @returns {Promise<string>} Object literal source starting with `{`.
@@ -70,8 +88,12 @@ export async function settingsTemplate(root, theme) {
   const active = await loadTheme({ root, theme: normalizeThemeName(theme) });
   const template = await templateFor(active.manifestPath);
   if (template) {
-    resolveSettings(active.definition, (await import(pathToFileURL(template).href)).default);
-    return objectText(await readFile(template, 'utf8'), template);
+    const values = (await import(pathToFileURL(template).href)).default;
+    const resolved = resolveSettings(active.definition, values);
+    // Complete authored templates keep their comments; incomplete ones are regenerated
+    // from the contract so new options cannot silently disappear from site config.
+    if (completeFields(active.definition.settings, values)) return objectText(await readFile(template, 'utf8'), template);
+    return `{\n${schemaSource(active.definition.settings, resolved)}\n}`;
   }
   if (!Object.keys(active.definition.settings).length) return '{}';
   return `{\n${schemaSource(active.definition.settings, active.settings)}\n}`;

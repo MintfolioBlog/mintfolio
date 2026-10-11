@@ -183,3 +183,9 @@ export default {
 4. 打开当前主题的 `theme-<主题>.config.mjs`，把 `export default` 后面的对象复制到 `theme.config.mjs` 的 `settings` 里，然后删掉所有 `theme-*.config.mjs`。
 5. 删掉 `astro.config.mjs`。如果里面有 `base`、`image` 这类设置，只保留它们，放进 `_mintfolio/astro.config.mjs`。
 6. CI 里的安装和构建改到 `_mintfolio/` 下执行，产物目录改成 `_mintfolio/dist`。
+
+### 自动生成的主题配置
+
+新建站点会创建 `_mintfolio/theme.config.mjs`，列出内置 Minimal 的全部设置。交互菜单安装并启用主题、`mintfolio theme install <包名> --use` 或 `mintfolio theme use <主题>` 会写入对应主题的完整设置模板，包含说明、默认值、可选值及已注释的数组示例。单独运行 `npm install` 或不带 `--use` 的 `mintfolio theme install` 只安装包，不修改当前主题。
+
+已有非空 `settings` 不会被初始化或重复启用覆盖；空设置可用 `mintfolio theme init` 补齐。切换到其他主题前会备份原配置。升级主题也不会自动覆盖用户设置；新增选项仍可通过 `mintfolio config schema theme` 查看。
