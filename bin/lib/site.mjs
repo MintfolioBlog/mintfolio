@@ -11,6 +11,7 @@ import { assertCurrentLayout } from './runtime.mjs';
 import { PROJECT_DIR } from '../../src/shared/layout.mjs';
 
 import { cliVersion } from './version.mjs';
+import { assertSupportedNode } from './node-version.mjs';
 export { cliVersion } from './version.mjs';
 
 /** @param {string} root Site root. Reject theme-file editing against engines that cannot read those files. */
@@ -75,7 +76,7 @@ export async function createSite(directory, options = {}) {
  * @returns {Promise<object>} Runtime paths, versions and configuration status.
  */
 export async function doctor(root) {
-  if (!semver.gte(process.versions.node, '22.12.0')) throw new Error('需要 Node.js >= 22.12.0。');
+  assertSupportedNode();
   await assertCurrentLayout(root);
   const host = createRequire(path.join(root, 'package.json'));
   const corePath = host.resolve('@mintfolio/core/package.json');

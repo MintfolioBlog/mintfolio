@@ -1,6 +1,6 @@
 # 命令行
 
-`mintfolio` 命令随 `@mintfolio/core` 一起安装，Windows、macOS、Linux 都能用，需要 Node.js 22.12.0 以上。
+`mintfolio` 命令随 `@mintfolio/core` 一起安装，Windows、macOS、Linux 都能用，需要 Node.js 22.23.4+（22.x）、24.22.1+（24.x）或 26.12.1+（26.x），推荐 24.x LTS。
 
 ```sh
 npm install -g @mintfolio/core

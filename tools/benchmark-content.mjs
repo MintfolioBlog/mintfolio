@@ -1,3 +1,4 @@
+import { assertSupportedNode } from '../bin/lib/node-version.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -210,8 +211,7 @@ function searchBench(payload, api, iterations) {
 async function main() {
   const selected = options(process.argv.slice(2));
   if (!selected) { console.log(usage); return; }
-  const [major, minor] = process.versions.node.split('.').map(Number);
-  assert.ok(major > 22 || (major === 22 && minor >= 12), 'Node.js >=22.12.0 is required');
+  assertSupportedNode();
   const core = await realpath(selected.core);
   await stat(path.join(core, 'dist', 'public', 'config.js'));
   await mkdir(selected.parent, { recursive: true });

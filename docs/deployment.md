@@ -26,7 +26,7 @@ mintfolio preview
 | 安装命令 | `npm ci` |
 | 构建命令 | `npx mintfolio build` |
 | 输出目录 | `dist`（相对 `_mintfolio`） |
-| Node.js | 22.12.0 以上 |
+| Node.js | 22.23.4+（22.x）、24.22.1+（24.x）或 26.12.1+（26.x），推荐 24.x LTS |
 
 记得把 `_mintfolio/package-lock.json` 提交到仓库，CI 装出来的版本才会和本地一致。
 
@@ -35,7 +35,8 @@ GitHub Actions 的关键几步：
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: 22
+    node-version: '^24.22.1'
+    check-latest: true
 - run: npm ci
   working-directory: _mintfolio
 - run: npx mintfolio build

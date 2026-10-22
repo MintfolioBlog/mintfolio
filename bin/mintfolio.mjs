@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { display, exists, findSite } from './lib/files.mjs';
 import { editFile, npm } from './lib/process.mjs';
 import { cliVersion } from './lib/version.mjs';
+import { assertSupportedNode } from './lib/node-version.mjs';
 import { PROJECT_DIR } from '../src/shared/layout.mjs';
 
 const help = {
@@ -136,6 +137,7 @@ async function main(argv) {
   let [command, ...args] = argv;
   if (['--version', '-v', 'version'].includes(command)) { console.log(await cliVersion()); return; }
   if (['help', '--help', '-h'].includes(command)) { printHelp(args[0] || 'main'); return; }
+  assertSupportedNode();
   if (command !== 'create') {
     const code = await delegate(cwd, original);
     if (code !== null) { process.exitCode = code; return; }
