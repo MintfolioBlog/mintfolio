@@ -162,3 +162,13 @@ test('rendered SeoHead escapes JSON-LD script boundaries and advertises all stat
   assert.match(html, /type="application\/feed\+json"/);
   assert.match(html, /type="application\/atom\+xml"/);
 });
+
+
+test('feed sanitization handles nested discarded iframe payloads without stack exhaustion', () => {
+  for (const payload of ['<iframe>'.repeat(2000), ('<iframe><b><b><b>').repeat(1000) + 'text']) {
+    let output;
+    assert.doesNotThrow(() => { output = prepareFeedHtml(payload, site.url); });
+    assert.doesNotMatch(output, /<iframe/i);
+  }
+  assert.equal(prepareFeedHtml('<p>Safe <strong>article</strong></p>', site.url), '<p>Safe <strong>article</strong></p>');
+});

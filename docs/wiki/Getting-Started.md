@@ -1,6 +1,6 @@
 # 快速开始
 
-需要 [Node.js](https://nodejs.org/) 22.12.0 或更高版本。
+需要 [Node.js](https://nodejs.org/) 22.23.4+（22.x）、24.22.1+（24.x）或 26.12.1+（26.x），推荐 24.x LTS。
 
 ## 建站
 

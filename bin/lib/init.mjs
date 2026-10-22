@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { checkedPath, exists } from './files.mjs';
 import { settingsTemplate } from '../theme-config.mjs';
+import { NODE_VERSION_RANGE } from './node-version.mjs';
 import { listPosts } from './posts.mjs';
 import { PAGES_DIR, PROJECT_DIR, PUBLIC_DIR, siteRootOf } from '../../src/shared/layout.mjs';
 
@@ -76,6 +77,7 @@ description: "收藏值得阅读的网站。"
   pkg.name ??= 'my-mintfolio-blog';
   pkg.private ??= true;
   pkg.type = 'module';
+  pkg.engines = { node: NODE_VERSION_RANGE, ...pkg.engines };
   pkg.scripts = { dev: 'mintfolio dev', build: 'mintfolio build', preview: 'mintfolio preview', ...pkg.scripts };
   await writeFile(filename, JSON.stringify(pkg, null, 2) + '\n');
   process.stdout.write('完成。修改 _mintfolio/site.config.ts 后运行 mintfolio dev，或直接运行 mintfolio 打开菜单。\n');
